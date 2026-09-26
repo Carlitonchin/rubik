@@ -1,6 +1,6 @@
 import { quarterRotation, type Axis, type Mat3 } from '../../core/geometry';
 import type { Turn } from '../../core/turn';
-import type { HandShape } from '../../vision/hand-shape';
+import { SHAPE_LABELS, type HandShape } from '../../vision/hand-shape';
 import type { HandSide } from '../../vision/hands-interpreter';
 
 /** Sellos que mueven el cubo. (✌️ es especial: deshacer y mezclar.) */
@@ -100,4 +100,44 @@ const ROTATION_PHRASES: Record<Motion, string> = {
 
 export function describeRotation(motion: Motion): string {
   return ROTATION_PHRASES[motion];
+}
+
+export interface TurnGesture {
+  /** Qué mano: la derecha, la izquierda, cualquiera (capas del medio) o las dos (cubo entero). */
+  hands: HandSide | 'any' | 'both';
+  seal: Seal;
+  motion: Motion;
+  /** 2 = media vuelta: el mismo gesto dos veces. */
+  count: 1 | 2;
+}
+
+const AXIS_SEALS: Record<Axis, OuterSeal> = { 0: 'fist', 1: 'point', 2: 'palm' };
+const AXIS_MOTIONS: Record<Axis, readonly [Motion, Motion]> = { 0: ['up', 'down'], 1: ['left', 'right'], 2: ['cw', 'ccw'] };
+
+/** El gesto del modo ninja que hace un giro (lo contrario de `turnFor`), o `null` si no tiene gesto. */
+export function gestureForTurn(turn: Turn): TurnGesture | null {
+  const [negative, positive] = AXIS_MOTIONS[turn.axis];
+  const quarters = ((turn.quarters % 4) + 4) % 4;
+  const motion = quarters === 1 ? positive : negative;
+  const count = quarters === 2 ? 2 : 1;
+  if (turn.layers.length === 3) return { hands: 'both', seal: AXIS_SEALS[turn.axis], motion, count };
+  if (turn.layers.length !== 1) return null;
+  const layer = turn.layers[0];
+  if (layer === 0) return { hands: 'any', seal: 'horns', motion, count };
+  return { hands: layer === 1 ? 'right' : 'left', seal: AXIS_SEALS[turn.axis], motion, count };
+}
+
+/** Símbolo corto de un gesto, por ejemplo «✊ ↑» o «✊✊ ↑ ×2». */
+export function gestureSymbol(gesture: TurnGesture): string {
+  const emoji = SHAPE_LABELS[gesture.seal].emoji;
+  return `${gesture.hands === 'both' ? emoji + emoji : emoji} ${MOTION_ARROWS[gesture.motion]}${gesture.count === 2 ? ' ×2' : ''}`;
+}
+
+/** Instrucción en lenguaje llano para un gesto, por ejemplo «Sube la columna derecha». */
+export function describeGesture(gesture: TurnGesture): string {
+  const text =
+    gesture.hands === 'both'
+      ? describeRotation(gesture.motion)
+      : describeMove(gesture.hands === 'any' ? 'right' : gesture.hands, gesture.seal, gesture.motion);
+  return gesture.count === 2 ? `${text} (dos veces)` : text;
 }

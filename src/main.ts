@@ -3,9 +3,11 @@ import { Game } from './game/game';
 import { attachPointerInput, DragController } from './input/drag';
 import { attachKeyboardInput } from './input/keyboard';
 import { CubeView } from './render/cube-view';
+import { Coach } from './coach/coach';
 import { NinjaController } from './input/ninja/ninja-controller';
 import { RecordingController } from './recording/recording-controller';
 import { mountCameraPanel } from './ui/camera-panel';
+import { mountCoachPanel } from './ui/coach-panel';
 import { mountDojo } from './ui/dojo-panel';
 import { mountHud } from './ui/hud';
 import { mountMoveFeed } from './ui/move-feed';
@@ -30,7 +32,11 @@ const tracker = new HandTracker();
 const ninja = new NinjaController(game, view, tracker);
 mountCameraPanel(app, tracker, ninja);
 mountMoveFeed(app, ninja);
-const dojo = mountDojo(app, { tracker, ninja, game, view });
+const dojo = mountDojo(app, { tracker, ninja, game, view }, { onOpen: () => coachPanel.close() });
+
+// Entrenador: «¿qué hago ahora?» con el método para principiantes.
+const coach = new Coach(game);
+const coachPanel = mountCoachPanel(app, coach, view, { onOpen: () => dojo.close() });
 
 // Grabar la partida en video (automático en cada resolución o a mano).
 const recording = new RecordingController(game, view, tracker, ninja);
@@ -39,6 +45,7 @@ const hud = mountHud(app, game, dispatch, {
   onToggleCamera: () => (tracker.isActive ? tracker.stop() : void tracker.start()),
   onOpenDojo: () => dojo.open(),
   onRecord: () => recordingPanel.toggle(),
+  onHint: () => coachPanel.toggle(),
 });
 tracker.onStatus((status) => hud.setCameraActive(status.state === 'starting' || status.state === 'running'));
 const recordingPanel = mountRecordingPanel(app, recording, {
@@ -47,4 +54,4 @@ const recordingPanel = mountRecordingPanel(app, recording, {
 });
 
 // Acceso desde la consola del navegador para depurar.
-if (import.meta.env.DEV) Object.assign(window, { game, view, tracker, ninja, recording });
+if (import.meta.env.DEV) Object.assign(window, { game, view, tracker, ninja, recording, coach });

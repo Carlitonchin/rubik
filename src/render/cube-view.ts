@@ -41,9 +41,26 @@ export interface PickResult {
 }
 
 /** Capa iluminada (vista previa del modo ninja o capa que pide el dojo). */
-export interface LayerHighlight {
-  axis: Axis;
-  layer: number;
+/**
+ * Algo que se ilumina en el cubo: una capa entera (vista previa del modo
+ * ninja, capa que pide el dojo o el entrenador) o una sola pieza.
+ */
+export type LayerHighlight = HighlightStyle &
+  (
+    | {
+        kind?: 'layer';
+        axis: Axis;
+        layer: number;
+        /**
+         * Balancea la capa en el sentido de un giro (signo de sus cuartos de
+         * vuelta), para indicar hacia dónde hay que moverla.
+         */
+        preview?: number;
+      }
+    | { kind: 'piece'; pos: Vec3 }
+  );
+
+interface HighlightStyle {
   color: string;
   /** Intensidad de 0 a 1. */
   strength?: number;
@@ -94,6 +111,10 @@ export class CubeView {
     const box = new THREE.BoxGeometry(size[0], size[1], size[2]);
     return { box, edges: new THREE.EdgesGeometry(box) };
   });
+  private readonly pieceGeometry = (() => {
+    const box = new THREE.BoxGeometry(1.14, 1.14, 1.14);
+    return { box, edges: new THREE.EdgesGeometry(box) };
+  })();
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -152,14 +173,15 @@ export class CubeView {
     this.highlightObjects = [];
     for (const { highlights } of this.highlightGroups.values()) {
       for (const highlight of highlights) {
-        const { box, edges } = this.slabGeometries[highlight.axis];
+        const { box, edges } = highlight.kind === 'piece' ? this.pieceGeometry : this.slabGeometries[highlight.axis];
         const mesh = new THREE.Mesh(
           box,
           new THREE.MeshBasicMaterial({ color: highlight.color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }),
         );
         const outline = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: highlight.color, transparent: true }));
         for (const object of [mesh, outline]) {
-          object.position.setComponent(highlight.axis, highlight.layer);
+          if (highlight.kind === 'piece') object.position.set(...highlight.pos);
+          else object.position.setComponent(highlight.axis, highlight.layer);
           object.renderOrder = 1;
           this.root.add(object);
         }
@@ -172,8 +194,16 @@ export class CubeView {
   private animateHighlights(time: number): void {
     for (const { mesh, edges, highlight } of this.highlightObjects) {
       const strength = (highlight.strength ?? 1) * (highlight.pulse ? 0.65 + 0.35 * Math.sin(time / 180) : 1);
-      (mesh.material as THREE.MeshBasicMaterial).opacity = 0.16 * strength;
+      (mesh.material as THREE.MeshBasicMaterial).opacity = (highlight.kind === 'piece' ? 0.22 : 0.16) * strength;
       (edges.material as THREE.LineBasicMaterial).opacity = 0.9 * strength;
+      if (highlight.kind !== 'piece' && highlight.preview) {
+        // Balanceo: gira un poco hacia donde va el giro, se detiene y vuelve.
+        const angle = Math.sign(highlight.preview) * PREVIEW_ANGLE * previewWave(time);
+        for (const object of [mesh, edges]) {
+          object.rotation.set(0, 0, 0);
+          object.rotation[(['x', 'y', 'z'] as const)[highlight.axis]] = angle;
+        }
+      }
     }
   }
 
@@ -402,6 +432,19 @@ export class CubeView {
     this.camera.updateProjectionMatrix();
     this.camera.updateMatrixWorld();
   }
+}
+
+const PREVIEW_ANGLE = 0.45;
+const PREVIEW_PERIOD_MS = 1500;
+
+/** 0 → 1 (ida suave), pausa, 1 → 0 (vuelta), pausa. */
+function previewWave(time: number): number {
+  const t = (time % PREVIEW_PERIOD_MS) / PREVIEW_PERIOD_MS;
+  const smooth = (x: number) => x * x * (3 - 2 * x);
+  if (t < 0.4) return smooth(t / 0.4);
+  if (t < 0.6) return 1;
+  if (t < 0.85) return 1 - smooth((t - 0.6) / 0.25);
+  return 0;
 }
 
 function applyTransform(cubie: Cubie): void {

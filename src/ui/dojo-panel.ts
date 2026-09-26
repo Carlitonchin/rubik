@@ -23,7 +23,11 @@ const HAND_LABELS: Record<StepHands, string> = {
 };
 
 /** Dojo: lecciones para entrenar los sellos, con precisión, tiempos y récords. */
-export function mountDojo(container: HTMLElement, { tracker, ninja, game, view }: DojoDeps): { open(): void } {
+export function mountDojo(
+  container: HTMLElement,
+  { tracker, ninja, game, view }: DojoDeps,
+  hooks: { onOpen(): void },
+): { open(): void; close(): void } {
   container.insertAdjacentHTML(
     'beforeend',
     `
@@ -90,6 +94,7 @@ export function mountDojo(container: HTMLElement, { tracker, ninja, game, view }
   };
 
   const open = () => {
+    hooks.onOpen();
     panel.hidden = false;
     ninja.allowScramble = false;
     showMenu();
@@ -243,7 +248,7 @@ export function mountDojo(container: HTMLElement, { tracker, ninja, game, view }
     if (event.key === 'Escape' && !panel.hidden) close();
   });
 
-  return { open };
+  return { open, close };
 }
 
 function loadRecord(lessonId: string): Pick<DojoResults, 'averageMs' | 'accuracy'> | null {

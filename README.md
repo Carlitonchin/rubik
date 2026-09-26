@@ -33,6 +33,11 @@ La primera vez que se enciende la cámara, el navegador descarga el detector de 
 - El video se compone aparte: el cubo, la cámara con el esqueleto de las manos (en vertical ocupa la mitad de arriba), el cronómetro, las fichas de combo y la tarjeta de «¡Resuelto!».
 - Se graba en MP4 (H.264) con MediaRecorder, directamente en el navegador (Chrome y Safari). Para no restar fluidez al juego, el cubo del video lo dibuja un segundo renderizador pequeño (copiar el lienzo de la pantalla es muy caro en Safari), se compone a 30 fps y cada fotograma se entrega al grabador justo al dibujarlo. Al terminar se puede ver, descargar o compartir con el menú del sistema (Web Share) donde el navegador lo permite.
 
+**Fase 5 (en curso): aprender a armar el cubo.**
+
+- «💡 Pista» abre el entrenador del método para principiantes (8 etapas): dice la etapa, el objetivo y el siguiente movimiento con su gesto ninja; ilumina la capa a mover (balanceándose hacia donde va el giro) y la pieza protagonista, y sigue tus movimientos.
+- Pendiente: lecciones guiadas por etapa y las técnicas del método en el dojo.
+
 El detector corre en un hilo aparte (`src/vision/detector.worker.ts`) para que el cubo siga a 60 fps con la cámara encendida. Si el navegador no lo permite, analiza en el hilo principal.
 
 ## Cómo ejecutarlo
@@ -55,6 +60,8 @@ Para probarlo en el móvil dentro de la misma red: `npm run dev -- --host` y abr
 - `src/render/`: el cubo en 3D con Three.js.
 - `src/input/`: modos de control: teclado, arrastre con ratón o dedo, y `ninja/` (sellos → movimientos). `ninja/gesture-engine.ts` no depende de la cámara y se prueba con manos simuladas.
 - `src/dojo/`: lecciones del dojo (pasos, aciertos, tiempos).
+- `src/solver/`: resolvedor del método para principiantes (`beginner.ts`), paso a paso y con explicaciones. `search.ts` busca el camino más corto para cada arista de la cruz.
+- `src/coach/`: el entrenador que sigue los movimientos del jugador y decide la siguiente pista.
 - `src/recording/`: grabación de video: `compositor.ts` dibuja cada fotograma del video, `recording-controller.ts` decide cuándo grabar.
 - `src/vision/`: cámara, detector de manos (MediaPipe) y reconocimiento de sellos. `hands-interpreter.ts` y `hand-shape.ts` no dependen de la cámara, así que se prueban con datos grabados (`__fixtures__/hands.json`).
 - `src/ui/`: interfaz sobre el cubo y panel de la cámara.

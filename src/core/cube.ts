@@ -68,6 +68,27 @@ export class CubeState {
     });
   }
 
+  /** Copia independiente del estado. */
+  clone(): CubeState {
+    const copy = new CubeState();
+    copy.stickers = this.stickers.map((s) => ({ ...s }));
+    return copy;
+  }
+
+  /** Copia de las pegatinas, para analizar el cubo sin modificarlo. */
+  stickerList(): Sticker[] {
+    return this.stickers.map((s) => ({ ...s }));
+  }
+
+  /** Texto que identifica el estado tal como se ve (dos estados iguales dan el mismo texto). */
+  signature(): string {
+    const key = (s: Sticker) => [...s.pos, ...s.normal].join(',');
+    return [...this.stickers]
+      .sort((a, b) => (key(a) < key(b) ? -1 : 1))
+      .map((s) => s.color)
+      .join('');
+  }
+
   /** Color de la pegatina que hay en `pos` mirando hacia `normal`. */
   colorAt(pos: Vec3, normal: Vec3): Face | undefined {
     return this.stickers.find((s) => vecEquals(s.pos, pos) && vecEquals(s.normal, normal))?.color;

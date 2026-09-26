@@ -20,6 +20,9 @@ export interface GameSnapshot {
   scrambling: boolean;
 }
 
+/** Qué cambió en el cubo: un giro, girar el cubo entero, o todo de golpe (reiniciar o mezclar). */
+export type CubeChange = { kind: 'turn'; turn: Turn } | { kind: 'rotate'; rotation: Mat3 } | { kind: 'reset' };
+
 type Action =
   | { kind: 'turn'; turn: Turn }
   | { kind: 'rotate'; rotation: Mat3 }
@@ -41,6 +44,7 @@ const SNAP_MS = 150;
 export class Game {
   private readonly cube = new CubeState();
   private readonly listeners = new Set<(snapshot: GameSnapshot) => void>();
+  private readonly cubeListeners = new Set<(change: CubeChange) => void>();
   private queue: Action[] = [];
   private busy = false;
   /** El jugador está arrastrando una capa o el cubo. */
@@ -71,6 +75,17 @@ export class Game {
     this.listeners.add(listener);
     listener(this.snapshot());
     return () => this.listeners.delete(listener);
+  }
+
+  /** Se llama cada vez que cambia el cubo (tras terminar la animación). */
+  onCubeChange(listener: (change: CubeChange) => void): () => void {
+    this.cubeListeners.add(listener);
+    return () => this.cubeListeners.delete(listener);
+  }
+
+  /** Copia del estado actual del cubo, tal como se ve. */
+  cubeState(): CubeState {
+    return this.cube.clone();
   }
 
   snapshot(): GameSnapshot {
@@ -171,6 +186,7 @@ export class Game {
         this.moves = 0;
         this.status = 'free';
         this.emit();
+        this.emitCube({ kind: 'reset' });
         break;
     }
   }
@@ -197,10 +213,12 @@ export class Game {
     this.moves = 0;
     this.status = 'ready';
     this.emit();
+    this.emitCube({ kind: 'reset' });
   }
 
   private commitTurn(turn: Turn, record: boolean): void {
     this.cube.applyTurn(turn);
+    this.emitCube({ kind: 'turn', turn });
     if (record) this.history.push(turn);
 
     if (this.status === 'ready') {
@@ -224,6 +242,11 @@ export class Game {
     if (matEquals(rotation, IDENTITY)) return;
     this.cube.applyRotation(rotation);
     this.history = this.history.map((turn) => transformTurn(turn, rotation));
+    this.emitCube({ kind: 'rotate', rotation });
+  }
+
+  private emitCube(change: CubeChange): void {
+    for (const listener of this.cubeListeners) listener(change);
   }
 
   private emit(): void {

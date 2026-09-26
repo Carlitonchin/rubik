@@ -181,6 +181,23 @@ body {
   cursor: pointer;
 }
 
+.hint-button {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  left: 64px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, #ffd54a 55%, transparent);
+  background: color-mix(in srgb, #ffd54a 14%, transparent);
+  backdrop-filter: blur(8px);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .hud-actions button.recording {
   color: #ff6b6b;
   border-color: #ff6b6b;
@@ -646,6 +663,217 @@ kbd {
 
   .move-feed-item:not(:nth-last-child(-n + 2)) {
     display: none;
+  }
+}
+
+/* --- Entrenador (pistas) ------------------------------------------------- */
+
+.coach {
+  top: calc(max(16px, env(safe-area-inset-top)) + 52px);
+  left: 16px;
+  transform: none;
+  width: 350px;
+  max-height: calc(100% - 150px);
+  overflow-y: auto;
+}
+
+.coach-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 36px;
+}
+
+.coach-stage-label {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.coach-stage-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffd54a;
+}
+
+.coach-stages {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  margin: 10px 0 14px;
+}
+
+.coach-stages span {
+  height: 4px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.1);
+}
+
+.coach-stages span.done {
+  background: #3ccf7a;
+}
+
+.coach-stages span.current {
+  background: #ffd54a;
+}
+
+.panel .coach-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.coach-detail {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #c7cbe8;
+}
+
+.coach-next {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 14px 12px;
+  border-radius: 16px;
+  border: 1px solid rgb(255 213 74 / 0.35);
+  background: rgb(255 213 74 / 0.07);
+  text-align: center;
+}
+
+.coach-next-label {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.coach-symbol {
+  font-size: 40px;
+  line-height: 1.15;
+}
+
+.coach-move-text {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.coach-notation {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.coach-sequence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.coach-chip {
+  padding: 3px 7px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  font-size: 13px;
+  opacity: 0.55;
+}
+
+.coach-chip.done {
+  opacity: 0.3;
+}
+
+.coach-chip.current {
+  opacity: 1;
+  border-color: #ffd54a;
+  box-shadow: 0 0 10px rgb(255 213 74 / 0.4);
+}
+
+.coach-feedback {
+  min-height: 1.4em;
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.coach-feedback.correct,
+.coach-feedback.stepDone,
+.coach-feedback.back {
+  color: #7ee2a8;
+}
+
+.coach-feedback.offPlan {
+  color: #ffb4a8;
+}
+
+@media (max-width: 1000px) {
+  .coach {
+    top: calc(max(16px, env(safe-area-inset-top)) + 124px);
+    width: 300px;
+  }
+}
+
+@media (max-width: 600px) {
+  .coach {
+    top: auto;
+    bottom: calc(max(16px, env(safe-area-inset-bottom)) + 76px);
+    left: 10px;
+    right: 10px;
+    width: auto;
+    max-height: 34%;
+    padding: 12px 14px;
+  }
+
+  /* En el móvil el panel es compacto para no tapar la parte de abajo del cubo. */
+  .coach-stages,
+  .coach-detail,
+  .coach-sequence,
+  .coach-notation,
+  .coach-next-label {
+    display: none;
+  }
+
+  .coach-header {
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .panel .coach-title {
+    font-size: 15px;
+  }
+
+  .coach-next {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    column-gap: 12px;
+    margin-top: 8px;
+    padding: 8px 12px;
+    text-align: left;
+  }
+
+  .coach-symbol {
+    font-size: 28px;
+  }
+
+  .coach-move-text {
+    font-size: 14px;
+  }
+
+  .coach-feedback {
+    margin-top: 6px;
+    font-size: 13px;
+  }
+
+  /* En el móvil no cabe junto al cronómetro: va debajo del botón de ayuda. */
+  .hint-button {
+    top: calc(max(16px, env(safe-area-inset-top)) + 50px);
+    left: 10px;
+    height: 36px;
+    padding: 0 12px;
+    font-size: 13px;
   }
 }
 

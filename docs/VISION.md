@@ -84,6 +84,25 @@ Una progresión por rangos. Un experto puede saltarla e ir directo al juego libr
 
 Técnicamente, las pistas necesitan un "resolvedor" propio que siga las mismas etapas que enseñan las lecciones. Un resolvedor de soluciones óptimas no sirve para esto, porque sus soluciones son imposibles de seguir para una persona.
 
+### El método (el de la guía oficial de Rubik)
+
+| Etapa | Qué se consigue | Cómo |
+|---|---|---|
+| 1. Cruz blanca | Cruz blanca arriba, cada arista junto a su centro | Movimientos cortos (el resolvedor busca el camino más corto para cada arista sin estropear las ya puestas) |
+| 2. Esquinas blancas | Primera capa completa | Bajar la esquina bajo su hueco y repetir el **remolino de abajo** (R' D' R D) hasta que encaje |
+| 3. Dar la vuelta | Blanco abajo, amarillo arriba | Girar el cubo entero |
+| 4. Segunda capa | Aristas del medio | **Entrada por la derecha** (U R U' R' U' F' U F) o **por la izquierda** (U' L' U L U F U' F') |
+| 5. Cruz amarilla | Cruz amarilla arriba | **La flecha** (F R U R' U' F') |
+| 6. Aristas amarillas | Aristas de arriba en su sitio | **El intercambio** (R U R' U R U2 R' U) |
+| 7. Esquinas amarillas en su sitio | Esquinas de arriba en su sitio, aunque giradas | **El carrusel** (U R U' L' U R' U' L) |
+| 8. Girar las esquinas amarillas | Cubo resuelto | Otra vez el **remolino de abajo**, esquina por esquina, girando solo la fila de arriba entre esquinas. A mitad de camino las capas de abajo se desordenan y se arreglan solas al final (el resolvedor reconoce ese estado). |
+
+Unos 160 movimientos de media: no es rápido, pero cada paso se entiende.
+
+### Pistas («💡 Pista»)
+
+El entrenador dice la etapa, el objetivo del paso y el siguiente movimiento con su gesto ninja, su texto («Sube la columna derecha») y su notación. En el cubo se ilumina la capa a mover, balanceándose hacia donde va el giro, y la pieza protagonista. Sigue los movimientos del jugador: si acierta, avanza; si se equivoca a mitad de una secuencia (y estropea lo avanzado), propone deshacer; si hace otra cosa que no estropea nada, recalcula desde ahí.
+
 ## Grabar y compartir
 
 - **Cámara en pantalla:** la imagen de la webcam aparece en una esquina, en modo espejo, con los efectos de chakra dibujados sobre las manos.
@@ -120,7 +139,7 @@ Técnicamente, las pistas necesitan un "resolvedor" propio que siga las mismas e
 2. ✅ Detección de manos + reconocimiento de sellos + cámara en la esquina.
 3. ✅ Modo ninja + dojo de sellos.
 4. ✅ Grabar y compartir.
-5. Aprender a armar: lecciones guiadas y pistas.
+5. ⏳ Aprender a armar: pistas (hecho) y lecciones guiadas por etapa con sus técnicas en el dojo (pendiente).
 6. Modo medio.
 7. Técnicas con nombre, efectos, rangos y modo velocidad.
 

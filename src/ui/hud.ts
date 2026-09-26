@@ -27,6 +27,7 @@ export interface HudOptions {
   onToggleCamera: () => void;
   onOpenDojo: () => void;
   onRecord: () => void;
+  onHint: () => void;
 }
 
 export interface HudHandle {
@@ -55,6 +56,7 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
         <button type="button" data-action="record">${ICONS.record}<span>Grabar</span></button>
       </nav>
       <button type="button" class="help-button" data-action="help" aria-label="Ayuda">?</button>
+      <button type="button" class="hint-button" data-action="hint">💡 Pista</button>
       <section class="panel solved" data-solved hidden>
         <h2>¡Resuelto!</h2>
         <p class="solved-time" data-solved-time></p>
@@ -84,6 +86,11 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
           <li>El mismo sello con las dos manos, moviéndolas a la vez, gira el cubo entero.</li>
           <li>✌️ mantenido con una mano deshace; con las dos, mezcla.</li>
           <li>Baja las manos a la <b>zona de descanso</b> (la franja de abajo) para que no cuenten.</li>
+        </ul>
+        <h3>Aprender a armarlo</h3>
+        <ul>
+          <li>Pulsa <b>💡 Pista</b> cuando quieras: te dice en qué etapa estás, qué conseguir y cuál es el siguiente movimiento. En el cubo se ilumina la capa a mover, balanceándose hacia donde va el giro, y la pieza protagonista.</li>
+          <li>Si te equivocas a mitad de una secuencia, deshaz el movimiento y seguirás donde ibas.</li>
         </ul>
         <h3>Grabar y compartir</h3>
         <ul>
@@ -138,6 +145,11 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
       case 'record':
         help.hidden = true;
         options.onRecord();
+        break;
+      case 'hint':
+        help.hidden = true;
+        solved.hidden = true;
+        options.onHint();
         break;
       case 'help':
         help.hidden = !help.hidden;
