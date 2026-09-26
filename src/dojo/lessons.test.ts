@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CubeState } from '../core/cube';
+import { parseAlgorithm } from '../core/turn';
 import { turnFor } from '../input/ninja/seal-map';
 import type { NinjaEvent } from '../input/ninja/gesture-engine';
 import type { HandsFrame, TrackedHand } from '../vision/hands-interpreter';
@@ -12,6 +13,12 @@ function eventFor(step: DojoStep): NinjaEvent {
   if (step.kind === 'middle') return { type: 'turn', side: 'left', seal: 'horns', motion: step.motion, turn: turnFor('left', 'horns', step.motion) };
   if (step.kind === 'rotate') return { type: 'rotate', seal: step.seal, motion: step.motion, rotation: [[1, 0, 0], [0, 1, 0], [0, 0, 1]] };
   throw new Error('Los pasos de sello no se hacen con eventos');
+}
+
+function eventTurn(step: DojoStep) {
+  const event = eventFor(step);
+  if (event.type === 'turn') return event.turn;
+  throw new Error('Las técnicas no giran el cubo entero');
 }
 
 function frameWith(step: Extract<DojoStep, { kind: 'seal' }>, time: number): HandsFrame {
@@ -65,6 +72,21 @@ describe('lecciones del dojo', () => {
     expect(session.handleFrame(frameWith(step, 100 + SEAL_HOLD_MS - 1))).toBe('pending');
     expect(session.handleFrame(frameWith(step, 100 + SEAL_HOLD_MS))).toBe('correct');
     expect(session.index).toBe(1);
+  });
+
+  it('cada técnica pide exactamente sus movimientos, en orden', () => {
+    for (const technique of LESSONS.filter((l) => l.group === 'techniques')) {
+      const steps = technique.createSteps(Math.random);
+      const cube = new CubeState();
+      for (const step of steps) cube.applyTurn(eventTurn(step));
+      const repeats = steps.length / technique.sequenceLength!;
+      const moves = technique.summary.match(/Secuencia: (.*)\.$/)![1];
+      const expected = new CubeState();
+      for (let i = 0; i < repeats; i++) for (const turn of parseAlgorithm(moves)) expected.applyTurn(turn);
+      expect(cube.signature(), technique.title).toBe(expected.signature());
+      // Las que prometen volver al principio, vuelven.
+      if (/volverá a quedar como estaba/.test(technique.summary)) expect(cube.isSolved(), technique.title).toBe(true);
+    }
   });
 
   it('las capas del medio se pueden hacer con cualquier mano', () => {

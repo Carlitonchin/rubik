@@ -26,9 +26,13 @@ class FakeGame implements CoachSource {
     return () => this.listeners.delete(listener);
   }
 
+  /** Giros del cubo entero hechos (no cuentan como movimientos). */
+  rotations = 0;
+
   play(turn: Turn): void {
     let change: CubeChange;
     if (turn.layers.length === 3) {
+      this.rotations++;
       const rotation = turnMatrix(turn);
       this.cube.applyRotation(rotation);
       change = { kind: 'rotate', rotation };
@@ -37,6 +41,15 @@ class FakeGame implements CoachSource {
       change = { kind: 'turn', turn };
     }
     for (const listener of this.listeners) listener(change);
+  }
+
+  /** Un cubo nuevo mezclado (como al preparar una lección). */
+  reset(seed = 99): void {
+    let state = seed;
+    const random = () => ((state = (state * 1664525 + 1013904223) % 2 ** 32), state / 2 ** 32);
+    this.cube.reset();
+    for (const turn of randomScramble(25, random)) this.cube.applyTurn(turn);
+    for (const listener of this.listeners) listener({ kind: 'reset' });
   }
 
   get solved(): boolean {
@@ -93,6 +106,37 @@ describe('entrenador', () => {
     game.play(parseTurn('y'));
     expect(['recalculated', 'correct', 'stepDone']).toContain(coach.state().feedback);
     expect(coach.state().step).not.toBeNull();
+  });
+
+  it('en una lección se para al terminar sus etapas y cuenta los movimientos', () => {
+    const game = new FakeGame(10);
+    const coach = new Coach(game);
+    coach.startLesson(['daisy', 'cross'], false);
+    let moves = 0;
+    while (coach.nextTurn()) {
+      expect(['daisy', 'cross']).toContain(coach.state().step?.stage);
+      game.play(coach.nextTurn()!);
+      moves++;
+    }
+    const { lesson } = coach.state();
+    expect(lesson?.complete).toBe(true);
+    // Girar el cubo entero no cuenta como movimiento.
+    expect(lesson?.moves).toBe(moves - game.rotations);
+    // La cruz está hecha pero el cubo no: la lección no pide más.
+    expect(game.solved).toBe(false);
+  });
+
+  it('mientras se prepara el cubo de la lección, no la da por completada', () => {
+    const game = new FakeGame(11);
+    const coach = new Coach(game);
+    // El cubo actual ya tiene la cruz hecha: sin esperar, la lección de la cruz saldría completada.
+    coach.startLesson(['daisy', 'cross'], false);
+    while (coach.nextTurn()) game.play(coach.nextTurn()!);
+    coach.startLesson(['daisy', 'cross'], false, true);
+    expect(coach.state().lesson).toMatchObject({ preparing: true, complete: false });
+    game.reset();
+    expect(coach.state().lesson).toMatchObject({ preparing: false, complete: false });
+    expect(['daisy', 'cross']).toContain(coach.state().step?.stage);
   });
 
   it('sigue a la pieza protagonista mientras se mueve', () => {

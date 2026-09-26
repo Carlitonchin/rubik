@@ -1,7 +1,9 @@
 import type { NinjaEvent } from '../input/ninja/gesture-engine';
+import { parseAlgorithm } from '../core/turn';
 import {
   describeMove,
   describeRotation,
+  gestureForTurn,
   MOTION_ARROWS,
   OUTER_SEALS,
   SEAL_MOTIONS,
@@ -10,6 +12,7 @@ import {
   type Motion,
   type OuterSeal,
 } from '../input/ninja/seal-map';
+import { ALGORITHMS } from '../solver/beginner';
 import { SHAPE_LABELS, type HandShape } from '../vision/hand-shape';
 import { HAND_SIDES, type HandsFrame, type HandSide } from '../vision/hands-interpreter';
 
@@ -22,6 +25,8 @@ export type DojoStep =
 
 export interface Lesson {
   id: string;
+  /** Sección del dojo: gestos básicos o técnicas del método. */
+  group: 'gestures' | 'techniques';
   title: string;
   summary: string;
   /** Los sellos no mueven el cubo durante la lección (solo se practica la forma). */
@@ -31,17 +36,38 @@ export interface Lesson {
   createSteps(random: () => number): DojoStep[];
 }
 
-/** El remolino: sube la columna derecha, fila de arriba a la izquierda, baja la columna, fila a la derecha. */
-const WHIRL: DojoStep[] = [
-  { kind: 'move', side: 'right', seal: 'fist', motion: 'up' },
-  { kind: 'move', side: 'right', seal: 'point', motion: 'left' },
-  { kind: 'move', side: 'right', seal: 'fist', motion: 'down' },
-  { kind: 'move', side: 'right', seal: 'point', motion: 'right' },
-];
+/** Convierte una secuencia en pasos de gestos (la media vuelta son dos gestos iguales). */
+export function stepsFor(moves: string): DojoStep[] {
+  return parseAlgorithm(moves).flatMap((turn) => {
+    const gesture = gestureForTurn(turn);
+    if (!gesture) throw new Error(`Sin gesto para ${moves}`);
+    const step: DojoStep =
+      gesture.hands === 'both'
+        ? { kind: 'rotate', seal: gesture.seal as OuterSeal, motion: gesture.motion }
+        : gesture.hands === 'any'
+          ? { kind: 'middle', motion: gesture.motion }
+          : { kind: 'move', side: gesture.hands, seal: gesture.seal as OuterSeal, motion: gesture.motion };
+    return Array.from({ length: gesture.count }, () => step);
+  });
+}
+
+/** Práctica de una técnica: la secuencia repetida `repeats` veces, mostrada entera. */
+function technique(id: string, title: string, summary: string, moves: string, repeats: number): Lesson {
+  const round = stepsFor(moves);
+  return {
+    id,
+    group: 'techniques',
+    title,
+    summary: `${summary} Secuencia: ${moves}.`,
+    sequenceLength: round.length,
+    createSteps: () => Array.from({ length: repeats }, () => round).flat(),
+  };
+}
 
 export const LESSONS: readonly Lesson[] = [
   {
     id: 'seals',
+    group: 'gestures',
     title: 'Sellos',
     summary: 'Forma cada sello con cada mano y mantenlo un instante.',
     practiceOnly: true,
@@ -56,6 +82,7 @@ export const LESSONS: readonly Lesson[] = [
   },
   {
     id: 'moves',
+    group: 'gestures',
     title: 'Movimientos',
     summary: 'Forma el sello, quédate quieto un instante y da el golpe. Luego vuelve al centro.',
     createSteps: (random) =>
@@ -68,12 +95,14 @@ export const LESSONS: readonly Lesson[] = [
   },
   {
     id: 'middle',
+    group: 'gestures',
     title: 'Capas del medio',
     summary: 'Con 🤘 (índice y meñique) y cualquier mano: arriba o abajo la columna del medio, a los lados la fila del medio, girando la capa del medio.',
     createSteps: (random) => shuffle(SEAL_MOTIONS.horns.map((motion): DojoStep => ({ kind: 'middle', motion })), random),
   },
   {
     id: 'rotations',
+    group: 'gestures',
     title: 'Girar el cubo',
     summary: 'El mismo sello con las dos manos, moviéndolas a la vez, gira el cubo entero.',
     createSteps: (random) =>
@@ -82,13 +111,31 @@ export const LESSONS: readonly Lesson[] = [
         random,
       ),
   },
-  {
-    id: 'whirl',
-    title: 'Técnica: el remolino',
-    summary: 'La secuencia que más se usa para armar el cubo. Hazla 6 veces seguidas y el cubo volverá a quedar como estaba.',
-    sequenceLength: WHIRL.length,
-    createSteps: () => Array.from({ length: 6 }, () => WHIRL).flat(),
-  },
+  technique(
+    'whirl',
+    'El remolino',
+    'La secuencia más famosa del cubo: coloca las esquinas blancas. Hazla 6 veces seguidas y el cubo volverá a quedar como estaba.',
+    ALGORITHMS.whirl.moves,
+    6,
+  ),
+  technique(
+    'lower-whirl',
+    'El remolino de abajo',
+    'Gira las esquinas amarillas al final. Hazlo 6 veces y el cubo volverá a quedar como estaba.',
+    ALGORITHMS.lowerWhirl.moves,
+    6,
+  ),
+  technique('middle-right', 'La entrada por la derecha', 'Mete una arista de la segunda capa por la derecha. Dos veces seguidas.', ALGORITHMS.middleRight.moves, 2),
+  technique('middle-left', 'La entrada por la izquierda', 'Mete una arista de la segunda capa por la izquierda. Dos veces seguidas.', ALGORITHMS.middleLeft.moves, 2),
+  technique('yellow-cross', 'La flecha', 'Forma la cruz amarilla. Tres veces seguidas.', ALGORITHMS.yellowCross.moves, 3),
+  technique('yellow-edges', 'El intercambio', 'Cambia de sitio dos aristas amarillas. Dos veces seguidas.', ALGORITHMS.yellowEdges.moves, 2),
+  technique(
+    'yellow-corners',
+    'El carrusel',
+    'Mueve tres esquinas amarillas. Hazlo 3 veces y el cubo volverá a quedar como estaba.',
+    ALGORITHMS.yellowCorners.moves,
+    3,
+  ),
 ];
 
 const SHAPE_ARTICLES: Partial<Record<HandShape, string>> = {

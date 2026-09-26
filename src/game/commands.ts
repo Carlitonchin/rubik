@@ -10,4 +10,6 @@ export type Command =
   | { type: 'rotate'; rotation: Mat3 }
   | { type: 'undo' }
   | { type: 'scramble' }
-  | { type: 'reset' };
+  | { type: 'reset' }
+  /** Deja el cubo en el estado que resulta de aplicar `turns` a un cubo resuelto, sin animación (lecciones). */
+  | { type: 'setup'; turns: readonly Turn[] };

@@ -56,7 +56,7 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
         <button type="button" data-action="record">${ICONS.record}<span>Grabar</span></button>
       </nav>
       <button type="button" class="help-button" data-action="help" aria-label="Ayuda">?</button>
-      <button type="button" class="hint-button" data-action="hint">💡 Pista</button>
+      <button type="button" class="hint-button" data-action="hint" aria-label="Pista">💡<span class="hint-label"> Pista</span></button>
       <section class="panel solved" data-solved hidden>
         <h2>¡Resuelto!</h2>
         <p class="solved-time" data-solved-time></p>
@@ -91,6 +91,7 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
         <ul>
           <li>Pulsa <b>💡 Pista</b> cuando quieras: te dice en qué etapa estás, qué conseguir y cuál es el siguiente movimiento. En el cubo se ilumina la capa a mover, balanceándose hacia donde va el giro, y la pieza protagonista.</li>
           <li>Si te equivocas a mitad de una secuencia, deshaz el movimiento y seguirás donde ibas.</li>
+          <li>En el <b>Dojo</b>, «Aprender a armar el cubo» empieza por «Conoce el cubo» (qué son los centros, las aristas y las esquinas) y sigue con una lección por etapa: el cubo llega preparado para practicar solo esa etapa, con pistas o sin ellas. En «Técnicas del método» practicas cada secuencia con los gestos.</li>
         </ul>
         <h3>Grabar y compartir</h3>
         <ul>

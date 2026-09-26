@@ -84,20 +84,29 @@ Una progresión por rangos. Un experto puede saltarla e ir directo al juego libr
 
 Técnicamente, las pistas necesitan un "resolvedor" propio que siga las mismas etapas que enseñan las lecciones. Un resolvedor de soluciones óptimas no sirve para esto, porque sus soluciones son imposibles de seguir para una persona.
 
-### El método (el de la guía oficial de Rubik)
+### El método
+
+Todo se hace con el amarillo arriba y el blanco abajo (no hay que dar la vuelta al cubo a mitad).
 
 | Etapa | Qué se consigue | Cómo |
 |---|---|---|
-| 1. Cruz blanca | Cruz blanca arriba, cada arista junto a su centro | Movimientos cortos (el resolvedor busca el camino más corto para cada arista sin estropear las ya puestas) |
-| 2. Esquinas blancas | Primera capa completa | Bajar la esquina bajo su hueco y repetir el **remolino de abajo** (R' D' R D) hasta que encaje |
-| 3. Dar la vuelta | Blanco abajo, amarillo arriba | Girar el cubo entero |
+| 1. La margarita | Las 4 aristas blancas alrededor del centro amarillo, con el blanco hacia arriba | Subir cada arista. El truco: antes, girar la fila de arriba para dejar su hueco libre; así nunca se rompe un pétalo ya puesto |
+| 2. Cruz blanca | Cruz blanca abajo, cada arista junto a su centro | Girar la fila de arriba hasta que el otro color del pétalo quede encima de su centro, y girar esa cara dos veces |
+| 3. Esquinas blancas | Primera capa completa | Poner la esquina encima de su hueco y repetir **el remolino** (R U R' U') 1, 3 o 5 veces |
 | 4. Segunda capa | Aristas del medio | **Entrada por la derecha** (U R U' R' U' F' U F) o **por la izquierda** (U' L' U L U F U' F') |
 | 5. Cruz amarilla | Cruz amarilla arriba | **La flecha** (F R U R' U' F') |
 | 6. Aristas amarillas | Aristas de arriba en su sitio | **El intercambio** (R U R' U R U2 R' U) |
 | 7. Esquinas amarillas en su sitio | Esquinas de arriba en su sitio, aunque giradas | **El carrusel** (U R U' L' U R' U' L) |
-| 8. Girar las esquinas amarillas | Cubo resuelto | Otra vez el **remolino de abajo**, esquina por esquina, girando solo la fila de arriba entre esquinas. A mitad de camino las capas de abajo se desordenan y se arreglan solas al final (el resolvedor reconoce ese estado). |
+| 8. Girar las esquinas amarillas | Cubo resuelto | **El remolino de abajo** (R' D' R D), esquina por esquina, girando solo la fila de arriba entre esquinas. A mitad de camino las capas de abajo se desordenan y se arreglan solas al final (el resolvedor reconoce ese estado). |
 
-Unos 160 movimientos de media: no es rápido, pero cada paso se entiende.
+Al principio las etapas 1 a 3 usaban la guía oficial de Rubik (cruz directamente arriba, esquinas con el remolino de abajo y dar la vuelta al cubo). Se cambió porque montar la cruz directamente es justo donde se atasca un principiante: al poner una pieza se rompen las anteriores. La margarita evita ese problema.
+
+Antes de las etapas hay una lección de conceptos, «Conoce el cubo»: tarjetas cortas con el cubo señalando qué son los centros, las aristas y las esquinas, que cada pieza tiene su sitio, por qué se arma por capas y los nombres de filas, columnas y caras.
+
+### Lecciones y técnicas (en el dojo)
+
+- **Aprender a armar el cubo:** «Conoce el cubo» y luego una lección por etapa. El cubo llega preparado: se mezcla y el resolvedor avanza hasta justo antes de la etapa, así las situaciones son naturales. Se practica con el entrenador, con pistas o sin ellas (se puede pedir una), y la lección termina al completar su etapa. Se guarda cuántas veces se completó y el récord de movimientos.
+- **Técnicas del método:** cada secuencia como práctica de gestos, con los gestos coloreados por mano. Las que vuelven al principio con pocas repeticiones se practican así: el remolino (6), el remolino de abajo (6) y el carrusel (3).
 
 ### Pistas («💡 Pista»)
 
@@ -139,7 +148,7 @@ El entrenador dice la etapa, el objetivo del paso y el siguiente movimiento con 
 2. ✅ Detección de manos + reconocimiento de sellos + cámara en la esquina.
 3. ✅ Modo ninja + dojo de sellos.
 4. ✅ Grabar y compartir.
-5. ⏳ Aprender a armar: pistas (hecho) y lecciones guiadas por etapa con sus técnicas en el dojo (pendiente).
+5. ✅ Aprender a armar: pistas, lecciones guiadas por etapa y técnicas del método en el dojo.
 6. Modo medio.
 7. Técnicas con nombre, efectos, rangos y modo velocidad.
 

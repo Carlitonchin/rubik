@@ -2,20 +2,25 @@ import type { CubeState, Face } from '../core/cube';
 import { mulMatVec, vecEquals, type Vec3 } from '../core/geometry';
 import { parseAlgorithm, turnMatrix, type Turn } from '../core/turn';
 import { Model } from './model';
-import { shortestSolution } from './search';
+import { FACE_TURNS, searchMoves, type TrackedSticker } from './search';
 
 /**
- * Método para principiantes (el de la guía oficial de Rubik), paso a paso.
- * Cada paso es corto y se explica en lenguaje llano, para que una persona
- * pueda seguirlo y aprender. No busca la solución más corta.
+ * Método para principiantes, paso a paso. Cada paso es corto y se explica en
+ * lenguaje llano, para que una persona pueda seguirlo y aprender. No busca
+ * la solución más corta.
+ *
+ * Todo se hace con el amarillo arriba y el blanco abajo. La cruz blanca se
+ * hace con el truco de la margarita: primero se suben las aristas blancas
+ * alrededor del centro amarillo (haciendo sitio antes de subir cada una, así
+ * no se rompe nada) y luego se bajan una a una a su sitio.
  */
 
-export type StageId = 'cross' | 'corners' | 'flip' | 'middle' | 'yellowCross' | 'yellowEdges' | 'yellowCorners' | 'orientCorners';
+export type StageId = 'daisy' | 'cross' | 'corners' | 'middle' | 'yellowCross' | 'yellowEdges' | 'yellowCorners' | 'orientCorners';
 
 export const STAGES: readonly { id: StageId; name: string }[] = [
+  { id: 'daisy', name: 'La margarita' },
   { id: 'cross', name: 'Cruz blanca' },
   { id: 'corners', name: 'Esquinas blancas' },
-  { id: 'flip', name: 'Dar la vuelta al cubo' },
   { id: 'middle', name: 'Segunda capa' },
   { id: 'yellowCross', name: 'Cruz amarilla' },
   { id: 'yellowEdges', name: 'Aristas amarillas en su sitio' },
@@ -39,6 +44,8 @@ export interface SolveStep {
 
 /** Secuencias del método, con el nombre con el que se enseñan. */
 export const ALGORITHMS = {
+  /** Remolino: sube la columna derecha, fila de arriba a un lado, baja la columna, fila al otro lado. */
+  whirl: { name: 'el remolino', moves: "R U R' U'" },
   /** Remolino de abajo: baja y sube la columna derecha girando la fila de abajo. */
   lowerWhirl: { name: 'el remolino de abajo', moves: "R' D' R D" },
   middleRight: { name: 'la entrada por la derecha', moves: "U R U' R' U' F' U F" },
@@ -65,6 +72,8 @@ const YELLOW_CORNERS = ADJACENT.map(([a, b]): Face[] => [YELLOW, a, b]);
 
 const UP: Vec3 = [0, 1, 0];
 const DOWN: Vec3 = [0, -1, 0];
+/** Huecos de la margarita: las aristas de arriba con el blanco mirando hacia arriba. */
+const PETALS: readonly TrackedSticker[] = ([[0, 1, 1], [1, 1, 0], [0, 1, -1], [-1, 1, 0]] as Vec3[]).map((pos) => ({ pos, normal: UP }));
 const FRONT_RIGHT_TOP: Vec3 = [1, 1, 1];
 const FRONT_RIGHT_BOTTOM: Vec3 = [1, -1, 1];
 
@@ -95,6 +104,14 @@ const times = (n: number) => (n === 1 ? 'una vez' : `${n} veces`);
 // --- Estado de cada etapa -----------------------------------------------
 
 const allSolved = (m: Model, pieces: readonly (readonly Face[])[]) => pieces.every((p) => m.isSolved(p));
+/** ¿Es un pétalo? Arista blanca junto al centro amarillo, con el blanco mirando hacia donde mira el amarillo. */
+const isPetal = (m: Model, edge: readonly Face[]) => {
+  const up = m.centerOf(YELLOW);
+  const pos = m.find(edge);
+  return pos[0] * up[0] + pos[1] * up[1] + pos[2] * up[2] === 1 && vecEquals(m.facing(edge, WHITE), up);
+};
+/** Margarita lista: cada arista blanca es un pétalo o ya está en la cruz. */
+const daisyReady = (m: Model) => WHITE_EDGES.every((e) => m.isSolved(e) || isPetal(m, e));
 const crossDone = (m: Model) => allSolved(m, WHITE_EDGES);
 const firstLayerDone = (m: Model) => crossDone(m) && allSolved(m, WHITE_CORNERS);
 const secondLayerDone = (m: Model) => firstLayerDone(m) && allSolved(m, MIDDLE_EDGES);
@@ -138,35 +155,46 @@ function rawNextStep(cube: CubeState, focus?: string): SolveStep | null {
   const orienting = orientCornersStep(m);
   if (orienting) return orienting;
 
-  const white = m.centerOf(WHITE);
-  if (!firstLayerDone(m)) {
-    const stage: StageId = crossDone(m) ? 'corners' : 'cross';
-    if (!vecEquals(white, UP)) {
-      return {
-        stage,
-        title: 'Pon el centro blanco arriba',
-        detail: 'Las dos primeras etapas se hacen con la cara blanca mirando hacia arriba. Gira el cubo entero.',
-        turns: rotationBringing(white, UP),
-        highlight: [white],
-      };
-    }
-    return stage === 'cross' ? crossStep(m, focus) : cornerStep(m, focus);
-  }
-
-  if (!vecEquals(white, DOWN)) {
+  const stage = stageOf(m);
+  const yellow = m.centerOf(YELLOW);
+  if (!vecEquals(yellow, UP)) {
     return {
-      stage: 'flip',
-      title: 'Dale la vuelta al cubo',
-      detail: 'La primera capa ya está. Desde ahora se trabaja con el blanco abajo y el amarillo arriba.',
-      turns: rotationBringing(white, DOWN),
-      highlight: [white],
+      stage,
+      title: 'Pon el centro amarillo arriba',
+      detail: 'Todo el método se hace con el amarillo arriba y el blanco abajo. Gira el cubo entero.',
+      turns: rotationBringing(yellow, UP),
+      highlight: [yellow],
     };
   }
-  if (!secondLayerDone(m)) return middleStep(m, focus);
-  if (!yellowCrossDone(m)) return yellowCrossStep(m);
-  if (!topAlignment(m, yellowEdgesSolved)) return yellowEdgesStep(m);
-  if (!topAlignment(m, yellowCornersPlaced)) return yellowCornersStep(m);
-  return orientCornersStep(m) ?? finalAlignmentStep(m);
+  switch (stage) {
+    case 'daisy':
+      return daisyStep(m, focus);
+    case 'cross':
+      return crossStep(m, focus);
+    case 'corners':
+      return cornerStep(m, focus);
+    case 'middle':
+      return middleStep(m, focus);
+    case 'yellowCross':
+      return yellowCrossStep(m);
+    case 'yellowEdges':
+      return yellowEdgesStep(m);
+    case 'yellowCorners':
+      return yellowCornersStep(m);
+    case 'orientCorners':
+      return orientCornersStep(m) ?? finalAlignmentStep(m);
+  }
+}
+
+/** Etapa según lo que ya está hecho (vale con el cubo en cualquier orientación). */
+function stageOf(m: Model): StageId {
+  if (!crossDone(m)) return daisyReady(m) ? 'cross' : 'daisy';
+  if (!firstLayerDone(m)) return 'corners';
+  if (!secondLayerDone(m)) return 'middle';
+  if (!yellowCrossDone(m)) return 'yellowCross';
+  if (!topAlignment(m, yellowEdgesSolved)) return 'yellowEdges';
+  if (!topAlignment(m, yellowCornersPlaced)) return 'yellowCorners';
+  return 'orientCorners';
 }
 
 /** Solución completa, paso a paso (para pruebas y para mostrar el plan entero). */
@@ -187,65 +215,123 @@ export function solve(cube: CubeState, maxSteps = 200): SolveStep[] {
   throw new Error('El resolvedor no terminó');
 }
 
-// --- Etapa 1: cruz blanca -------------------------------------------------
+// --- Etapa 1: la margarita --------------------------------------------------
 
-function crossStep(m: Model, focus?: string): SolveStep {
-  const solved = WHITE_EDGES.filter((p) => m.isSolved(p));
-  const pending = WHITE_EDGES.filter((p) => !m.isSolved(p));
-  const focused = pending.find((p) => pieceKey(p) === focus);
-  // Se elige la arista más fácil de colocar (o la que ya se estaba colocando).
-  const options = (focused ? [focused] : pending).map((edge) => ({ edge, turns: shortestSolution(m, [...solved, edge]) ?? [] }));
-  const { edge, turns } = options.reduce((best, option) => (option.turns.length < best.turns.length ? option : best));
+function daisyStep(m: Model, focus?: string): SolveStep {
+  const petals = WHITE_EDGES.filter((e) => isPetal(m, e));
+  const inCross = WHITE_EDGES.filter((e) => m.isSolved(e));
+  const pending = WHITE_EDGES.filter((e) => !isPetal(m, e) && !m.isSolved(e));
+  const goals = (edge: readonly Face[], keepCross: boolean) => [
+    { colors: edge, targets: PETALS },
+    ...petals.map((p) => ({ colors: p, targets: PETALS })),
+    ...(keepCross ? inCross.map((p) => ({ colors: p, targets: [{ pos: m.home(p), normal: m.centerOf(WHITE) }] })) : []),
+  ];
+  const solutionFor = (edge: readonly Face[]) => searchMoves(m, goals(edge, true), FACE_TURNS, 7) ?? searchMoves(m, goals(edge, false), FACE_TURNS, 8) ?? [];
+  const focused = pending.find((e) => pieceKey(e) === focus);
+  const { edge, turns } = (focused ? [focused] : pending)
+    .map((e) => ({ edge: e, turns: solutionFor(e) }))
+    .reduce((best, option) => (option.turns.length < best.turns.length ? option : best));
+
+  const name = pieceName(edge);
+  const base = { stage: 'daisy' as const, highlight: [m.find(edge)], focus: pieceKey(edge) };
+  const isTopTurn = (turn: Turn) => turn.axis === 1 && turn.layers[0] === 1;
+  const edgeOnTop = m.find(edge)[1] === 1;
+  const room = edgeOnTop ? [] : turns.slice(0, turns.findIndex((turn) => !isTopTurn(turn)));
+  if (room.length) {
+    return {
+      ...base,
+      title: `Haz sitio para ${name}`,
+      detail: 'Gira la fila de arriba para que el hueco donde va a llegar la arista esté libre, sin un pétalo blanco. Así no rompes lo que ya pusiste.',
+      turns: room,
+    };
+  }
   return {
-    stage: 'cross',
-    title: `Coloca ${pieceName(edge)} en la cruz`,
-    detail: `El blanco tiene que quedar arriba y el ${COLOR_NAMES[edge[1]].m} junto a ${centerName(edge[1])}. Las aristas blancas que ya están bien vuelven a su sitio al terminar.`,
+    ...base,
+    title: edgeOnTop ? `Da la vuelta a ${name}` : `Sube ${name} a la margarita`,
+    detail: edgeOnTop
+      ? 'Ya está arriba, pero con el blanco hacia un lado: hay que girarla para que el blanco mire hacia arriba.'
+      : 'Súbela junto al centro amarillo con el blanco mirando hacia arriba, como un pétalo.',
     turns,
-    highlight: [m.find(edge)],
-    focus: pieceKey(edge),
   };
 }
 
-// --- Etapa 2: esquinas blancas ------------------------------------------
+// --- Etapa 2: cruz blanca (bajar los pétalos) -------------------------------
+
+function crossStep(m: Model, focus?: string): SolveStep {
+  const petals = WHITE_EDGES.filter((e) => isPetal(m, e));
+  // Giro de la fila de arriba que deja el otro color del pétalo encima de su centro.
+  const alignment = (edge: readonly Face[]) =>
+    [[], t('U'), t("U'"), t('U2')].find((turns) => {
+      const moved = m.clone().apply(turns);
+      return vecEquals(moved.facing(edge, edge[1]), moved.centerOf(edge[1]));
+    })!;
+  const focused = petals.find((e) => pieceKey(e) === focus);
+  const { edge, turns } = (focused ? [focused] : petals)
+    .map((e) => ({ edge: e, turns: alignment(e) }))
+    .reduce((best, option) => (option.turns.length < best.turns.length ? option : best));
+
+  const color = COLOR_NAMES[edge[1]];
+  const base = { stage: 'cross' as const, highlight: [m.find(edge)], focus: pieceKey(edge) };
+  if (turns.length) {
+    return {
+      ...base,
+      title: `Pon ${pieceName(edge)} encima de ${centerName(edge[1])}`,
+      detail: `Gira la fila de arriba hasta que el ${color.m} de la arista quede justo encima de ${centerName(edge[1])}: se forma una línea ${color.f}.`,
+      turns,
+    };
+  }
+  const face = m.centerOf(edge[1]);
+  if (vecEquals(face, [0, 0, -1])) {
+    return { ...base, title: `Gira el cubo para tener ${centerName(edge[1])} delante`, detail: 'Así es más cómodo bajar la arista.', turns: t('y2') };
+  }
+  const axis = face.findIndex((v) => v !== 0) as 0 | 1 | 2;
+  return {
+    ...base,
+    title: `Baja ${pieceName(edge)} a su sitio`,
+    detail: `Gira esa cara dos veces: la arista baja junto a ${centerName(edge[1])}, con el blanco abajo.`,
+    turns: [{ axis, layers: [face[axis]], quarters: 2 }],
+  };
+}
+
+// --- Etapa 3: esquinas blancas (con el remolino) ----------------------------
 
 function cornerStep(m: Model, focus?: string): SolveStep {
   const pending = WHITE_CORNERS.filter((p) => !m.isSolved(p));
-  // Mejor una que ya esté abajo; si no, la que se estaba colocando.
-  const corner =
-    pending.find((p) => pieceKey(p) === focus) ?? pending.find((p) => m.find(p)[1] === -1) ?? pending[0];
+  // Mejor una que ya esté arriba; si no, la que se estaba colocando.
+  const corner = pending.find((p) => pieceKey(p) === focus) ?? pending.find((p) => m.find(p)[1] === 1) ?? pending[0];
   const name = pieceName(corner);
   const pos = m.find(corner);
   const base = { stage: 'corners' as const, highlight: [pos], focus: pieceKey(corner) };
 
-  if (pos[1] === 1) {
-    // Está arriba pero mal: primero hay que bajarla.
-    const turn = rotationAround(pos, FRONT_RIGHT_TOP);
+  if (pos[1] === -1) {
+    // Está abajo pero mal: primero hay que sacarla.
+    const turn = rotationAround(pos, FRONT_RIGHT_BOTTOM);
     if (turn.length) {
-      return { ...base, title: `Gira el cubo para tener ${name} delante a la derecha`, detail: 'Esta esquina está arriba pero mal colocada: primero hay que sacarla.', turns: turn };
+      return { ...base, title: `Gira el cubo para tener ${name} delante a la derecha`, detail: 'Esta esquina está abajo pero mal colocada: primero hay que sacarla.', turns: turn };
     }
     return {
       ...base,
-      title: `Saca ${name} hacia abajo`,
-      detail: `Haz ${ALGORITHMS.lowerWhirl.name} una vez: la esquina baja a la fila de abajo.`,
-      turns: algorithm('lowerWhirl'),
+      title: `Saca ${name} hacia arriba`,
+      detail: `Haz ${ALGORITHMS.whirl.name} una vez: la esquina sube a la fila de arriba.`,
+      turns: algorithm('whirl'),
     };
   }
 
   const home = m.home(corner);
-  const turn = rotationAround(home, FRONT_RIGHT_TOP);
+  const turn = rotationAround(home, FRONT_RIGHT_BOTTOM);
   if (turn.length) {
-    return { ...base, title: `Gira el cubo para tener el hueco de ${name} delante a la derecha`, detail: 'El hueco es el sitio de arriba donde tiene que ir la esquina.', turns: turn };
+    return { ...base, title: `Gira el cubo para tener el hueco de ${name} delante a la derecha`, detail: 'El hueco es el sitio de abajo donde tiene que ir la esquina.', turns: turn };
   }
-  if (!vecEquals(pos, FRONT_RIGHT_BOTTOM)) {
-    const turns = [t('D'), t("D'"), t('D2')].find((option) => vecEquals(m.clone().apply(option).find(corner), FRONT_RIGHT_BOTTOM))!;
-    return { ...base, title: `Lleva ${name} justo debajo de su hueco`, detail: 'Gira la fila de abajo hasta que la esquina quede debajo del hueco (delante a la derecha).', turns };
+  if (!vecEquals(pos, FRONT_RIGHT_TOP)) {
+    const turns = [t('U'), t("U'"), t('U2')].find((option) => vecEquals(m.clone().apply(option).find(corner), FRONT_RIGHT_TOP))!;
+    return { ...base, title: `Lleva ${name} justo encima de su hueco`, detail: 'Gira la fila de arriba hasta que la esquina quede encima del hueco (delante a la derecha).', turns };
   }
-  const repeats = [1, 2, 3, 4, 5].find((n) => m.clone().apply(repeat(algorithm('lowerWhirl'), n)).isSolved(corner))!;
+  const repeats = [1, 2, 3, 4, 5].find((n) => m.clone().apply(repeat(algorithm('whirl'), n)).isSolved(corner))!;
   return {
     ...base,
-    title: `Sube ${name} a su sitio`,
-    detail: `Repite ${ALGORITHMS.lowerWhirl.name} (${ALGORITHMS.lowerWhirl.moves}) ${times(repeats)}, hasta que la esquina quede bien, con el blanco arriba.`,
-    turns: repeat(algorithm('lowerWhirl'), repeats),
+    title: `Baja ${name} a su sitio`,
+    detail: `Repite ${ALGORITHMS.whirl.name} (${ALGORITHMS.whirl.moves}) ${times(repeats)}, hasta que la esquina quede bien, con el blanco abajo.`,
+    turns: repeat(algorithm('whirl'), repeats),
   };
 }
 

@@ -1,10 +1,16 @@
+import { formatTurn, parseAlgorithm } from '../core/turn';
 import { describeStep, DojoSession, LESSONS, stepTargets, type DojoResults, type Lesson, type StepHands } from '../dojo/lessons';
 import type { Game } from '../game/game';
 import { summarizeEvent } from '../input/ninja/describe';
 import type { NinjaController } from '../input/ninja/ninja-controller';
+import { gestureForTurn, gestureSymbol } from '../input/ninja/seal-map';
+import { cardCube, CONCEPT_CARDS } from '../learn/concepts';
+import { lessonProgress } from '../learn/progress';
+import { STAGE_LESSONS, type StageLesson } from '../learn/stage-lessons';
 import type { CubeView } from '../render/cube-view';
+import { ALGORITHMS } from '../solver/beginner';
 import type { HandTracker } from '../vision/hand-tracker';
-import { DOJO_TARGET_COLOR, HAND_COLORS } from './theme';
+import { DOJO_TARGET_COLOR, HAND_COLORS, handColor } from './theme';
 
 interface DojoDeps {
   tracker: HandTracker;
@@ -26,7 +32,7 @@ const HAND_LABELS: Record<StepHands, string> = {
 export function mountDojo(
   container: HTMLElement,
   { tracker, ninja, game, view }: DojoDeps,
-  hooks: { onOpen(): void },
+  hooks: { onOpen(): void; onStartStageLesson(lesson: StageLesson, hintsHidden: boolean): void },
 ): { open(): void; close(): void } {
   container.insertAdjacentHTML(
     'beforeend',
@@ -36,18 +42,65 @@ export function mountDojo(
 
       <div data-view="menu">
         <h2>Dojo</h2>
-        <p class="dojo-intro">Entrena los sellos del modo ninja. Cada lección mide tu precisión y tu velocidad.</p>
+        <p class="dojo-intro">Entrena los gestos, las técnicas del método y aprende a armar el cubo etapa por etapa.</p>
         <p class="dojo-camera-note" data-camera-note hidden></p>
+        <h3>Aprender a armar el cubo</h3>
         <div class="dojo-lessons">
-          ${LESSONS.map(
+          <button type="button" class="dojo-lesson" data-action="concepts">
+            <span class="dojo-lesson-title"><span class="dojo-check" data-check="concepts"></span>0. Conoce el cubo</span>
+            <span class="dojo-lesson-summary">Qué son los centros, las aristas y las esquinas, y por qué se arma por capas. Empieza por aquí.</span>
+          </button>
+          ${STAGE_LESSONS.map(
             (lesson, i) => `
-            <button type="button" class="dojo-lesson" data-lesson="${lesson.id}">
-              <span class="dojo-lesson-title">${i + 1}. ${lesson.title}</span>
-              <span class="dojo-lesson-summary">${lesson.summary}</span>
-              <span class="dojo-lesson-best" data-best="${lesson.id}"></span>
+            <button type="button" class="dojo-lesson" data-stage-lesson="${lesson.id}">
+              <span class="dojo-lesson-title"><span class="dojo-check" data-check="${lesson.id}"></span>${i + 1}. ${lesson.title}</span>
+              <span class="dojo-lesson-summary">${lesson.intro[0]}</span>
+              <span class="dojo-lesson-best" data-progress="${lesson.id}"></span>
             </button>`,
           ).join('')}
         </div>
+        ${(['gestures', 'techniques'] as const)
+          .map(
+            (group) => `
+          <h3>${group === 'gestures' ? 'Gestos' : 'Técnicas del método'}</h3>
+          <div class="dojo-lessons">
+            ${LESSONS.filter((lesson) => lesson.group === group)
+              .map(
+                (lesson) => `
+              <button type="button" class="dojo-lesson" data-lesson="${lesson.id}">
+                <span class="dojo-lesson-title">${lesson.title}</span>
+                <span class="dojo-lesson-summary">${lesson.summary}</span>
+                <span class="dojo-lesson-best" data-best="${lesson.id}"></span>
+              </button>`,
+              )
+              .join('')}
+          </div>`,
+          )
+          .join('')}
+      </div>
+
+      <div data-view="concepts" hidden>
+        <header class="dojo-header">
+          <span class="dojo-lesson-name">Conoce el cubo</span>
+          <span class="dojo-count" data-card-count></span>
+        </header>
+        <div class="dojo-progress"><div class="dojo-progress-bar" data-card-progress></div></div>
+        <h2 data-card-title></h2>
+        <p class="dojo-card-text" data-card-text></p>
+        <div class="dojo-card-actions">
+          <button type="button" class="secondary" data-action="card-prev">Anterior</button>
+          <button type="button" class="primary" data-action="card-next">Siguiente</button>
+        </div>
+        <button type="button" class="secondary" data-action="menu">Otras lecciones</button>
+      </div>
+
+      <div data-view="stage" hidden>
+        <h2 data-stage-title></h2>
+        <div class="dojo-stage-intro" data-stage-intro></div>
+        <div class="dojo-techniques" data-stage-techniques></div>
+        <button type="button" class="primary" data-action="stage-start">Empezar con pistas</button>
+        <button type="button" class="secondary" data-action="stage-start-hidden">Empezar sin pistas</button>
+        <button type="button" class="secondary" data-action="menu">Otras lecciones</button>
       </div>
 
       <div data-view="lesson" hidden>
@@ -87,9 +140,10 @@ export function mountDojo(
   const feedback = $('[data-feedback]');
   let session: DojoSession | null = null;
   let lastLesson: Lesson | null = null;
+  let stageLesson: StageLesson | null = null;
   let flashTimer = 0;
 
-  const showView = (name: 'menu' | 'lesson' | 'results') => {
+  const showView = (name: 'menu' | 'concepts' | 'stage' | 'lesson' | 'results') => {
     for (const element of views) element.hidden = element.dataset.view !== name;
   };
 
@@ -117,7 +171,53 @@ export function mountDojo(
       const record = loadRecord(lesson.id);
       $(`[data-best="${lesson.id}"]`).textContent = record ? `Tu récord: ${seconds(record.averageMs)} por paso` : '';
     }
+    $('[data-check="concepts"]').textContent = localStorage.getItem('rubik.learn.concepts') ? '✓ ' : '';
+    for (const lesson of STAGE_LESSONS) {
+      const progress = lessonProgress(lesson.id);
+      $(`[data-check="${lesson.id}"]`).textContent = progress.completed ? '✓ ' : '';
+      $(`[data-progress="${lesson.id}"]`).textContent = progress.completed
+        ? `Completada ${progress.completed === 1 ? 'una vez' : `${progress.completed} veces`} · récord: ${progress.bestMoves} movimientos`
+        : '';
+    }
     showView('menu');
+  };
+
+  /** «Conoce el cubo»: tarjetas cortas; el cubo señala en cada una lo que se explica. */
+  let cardIndex = 0;
+  const showCard = (index: number) => {
+    cardIndex = index;
+    const card = CONCEPT_CARDS[index];
+    const last = index === CONCEPT_CARDS.length - 1;
+    game.dispatch({ type: 'setup', turns: parseAlgorithm(card.setup) });
+    view.setHighlights('dojo', card.highlight(cardCube(card)));
+    $('[data-card-title]').textContent = card.title;
+    $('[data-card-text]').textContent = card.text;
+    $('[data-card-count]').textContent = `${index + 1} / ${CONCEPT_CARDS.length}`;
+    $('[data-card-progress]').style.width = `${((index + 1) / CONCEPT_CARDS.length) * 100}%`;
+    $<HTMLButtonElement>('[data-action="card-prev"]').disabled = index === 0;
+    $('[data-action="card-next"]').textContent = last ? `Empezar: ${STAGE_LESSONS[0].title.toLowerCase()}` : 'Siguiente';
+    if (last) localStorage.setItem('rubik.learn.concepts', 'done');
+    showView('concepts');
+  };
+
+  /** Presentación de una lección por etapa: qué conseguir y sus técnicas con los gestos. */
+  const showStageLesson = (lesson: StageLesson) => {
+    stageLesson = lesson;
+    $('[data-stage-title]').textContent = lesson.title;
+    $('[data-stage-intro]').innerHTML = lesson.intro.map((text) => `<p>${text}</p>`).join('');
+    $('[data-stage-techniques]').innerHTML = lesson.techniques
+      .map((key) => {
+        const technique = ALGORITHMS[key];
+        const chips = parseAlgorithm(technique.moves)
+          .map((turn) => {
+            const gesture = gestureForTurn(turn)!;
+            return `<span class="dojo-chip" style="--hand-color: ${handColor(gesture.hands)}" title="${formatTurn(turn)}">${gestureSymbol(gesture)}</span>`;
+          })
+          .join('');
+        return `<div class="dojo-technique"><span class="dojo-technique-name">Técnica: ${technique.name} <span class="dojo-notation">${technique.moves}</span></span><div class="dojo-sequence">${chips}</div></div>`;
+      })
+      .join('');
+    showView('stage');
   };
 
   const startLesson = (lesson: Lesson) => {
@@ -160,7 +260,8 @@ export function mountDojo(
     const rounds = session.steps.length / length;
     const chips = session.steps.slice(round * length, (round + 1) * length).map((step, i) => {
       const state = round * length + i < session!.index ? 'done' : round * length + i === session!.index ? 'current' : '';
-      return `<span class="dojo-chip ${state}">${describeStep(step).symbol}</span>`;
+      const { hands, symbol } = describeStep(step);
+      return `<span class="dojo-chip ${state}" style="--hand-color: ${handColor(hands)}">${symbol}</span>`;
     });
     sequence.innerHTML = `<span class="dojo-round">Ronda ${round + 1} de ${rounds}</span>${chips.join('')}`;
   };
@@ -231,6 +332,11 @@ export function mountDojo(
       startLesson(LESSONS.find((lesson) => lesson.id === lessonButton.dataset.lesson)!);
       return;
     }
+    const stageButton = target.closest<HTMLElement>('[data-stage-lesson]');
+    if (stageButton) {
+      showStageLesson(STAGE_LESSONS.find((lesson) => lesson.id === stageButton.dataset.stageLesson)!);
+      return;
+    }
     switch (target.closest<HTMLElement>('[data-action]')?.dataset.action) {
       case 'close':
         close();
@@ -240,6 +346,20 @@ export function mountDojo(
         break;
       case 'repeat':
         if (lastLesson) startLesson(lastLesson);
+        break;
+      case 'concepts':
+        showCard(0);
+        break;
+      case 'card-prev':
+        showCard(Math.max(0, cardIndex - 1));
+        break;
+      case 'card-next':
+        if (cardIndex < CONCEPT_CARDS.length - 1) showCard(cardIndex + 1);
+        else showStageLesson(STAGE_LESSONS[0]);
+        break;
+      case 'stage-start':
+      case 'stage-start-hidden':
+        if (stageLesson) hooks.onStartStageLesson(stageLesson, target.closest<HTMLElement>('[data-action]')!.dataset.action === 'stage-start-hidden');
         break;
     }
   });

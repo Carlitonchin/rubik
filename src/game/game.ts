@@ -28,7 +28,8 @@ type Action =
   | { kind: 'rotate'; rotation: Mat3 }
   | { kind: 'undo' }
   | { kind: 'scramble' }
-  | { kind: 'reset' };
+  | { kind: 'reset' }
+  | { kind: 'setup'; turns: readonly Turn[] };
 
 const TURN_MS = 150;
 /** Si se acumulan órdenes (teclear rápido), se animan más deprisa para no quedarse atrás. */
@@ -65,6 +66,9 @@ export class Game {
         break;
       case 'rotate':
         this.enqueue({ kind: 'rotate', rotation: command.rotation });
+        break;
+      case 'setup':
+        this.enqueue({ kind: 'setup', turns: command.turns });
         break;
       default:
         this.enqueue({ kind: command.type });
@@ -182,6 +186,24 @@ export class Game {
       case 'reset':
         this.cube.reset();
         this.view.reset();
+        this.history = [];
+        this.moves = 0;
+        this.status = 'free';
+        this.emit();
+        this.emitCube({ kind: 'reset' });
+        break;
+      case 'setup':
+        this.cube.reset();
+        this.view.reset();
+        for (const turn of action.turns) {
+          if (isWholeCube(turn)) {
+            await this.view.animateRotation(turnMatrix(turn), 0);
+            this.cube.applyRotation(turnMatrix(turn));
+          } else {
+            await this.view.animateTurn(turn, 0);
+            this.cube.applyTurn(turn);
+          }
+        }
         this.history = [];
         this.moves = 0;
         this.status = 'free';

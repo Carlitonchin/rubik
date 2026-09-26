@@ -4,6 +4,7 @@ import { attachPointerInput, DragController } from './input/drag';
 import { attachKeyboardInput } from './input/keyboard';
 import { CubeView } from './render/cube-view';
 import { Coach } from './coach/coach';
+import { prepareLesson, STAGE_LESSONS, type StageLesson } from './learn/stage-lessons';
 import { NinjaController } from './input/ninja/ninja-controller';
 import { RecordingController } from './recording/recording-controller';
 import { mountCameraPanel } from './ui/camera-panel';
@@ -32,11 +33,38 @@ const tracker = new HandTracker();
 const ninja = new NinjaController(game, view, tracker);
 mountCameraPanel(app, tracker, ninja);
 mountMoveFeed(app, ninja);
-const dojo = mountDojo(app, { tracker, ninja, game, view }, { onOpen: () => coachPanel.close() });
+const dojo = mountDojo(
+  app,
+  { tracker, ninja, game, view },
+  { onOpen: () => coachPanel.close(), onStartStageLesson: (lesson, hintsHidden) => startStageLesson(lesson, hintsHidden) },
+);
 
-// Entrenador: «¿qué hago ahora?» con el método para principiantes.
+// Entrenador: «¿qué hago ahora?» con el método para principiantes, y las lecciones por etapa.
 const coach = new Coach(game);
-const coachPanel = mountCoachPanel(app, coach, view, { onOpen: () => dojo.close() });
+let currentLesson: StageLesson | null = null;
+const coachPanel = mountCoachPanel(app, coach, view, {
+  onOpen: () => dojo.close(),
+  onLessonAction: (action) => {
+    if (!currentLesson) return;
+    if (action === 'dojo') {
+      coachPanel.close();
+      dojo.open();
+    } else if (action === 'next') {
+      const next = STAGE_LESSONS[STAGE_LESSONS.indexOf(currentLesson) + 1];
+      if (next) startStageLesson(next, false);
+    } else {
+      startStageLesson(currentLesson, action === 'repeatHidden');
+    }
+  },
+});
+
+/** Prepara el cubo para una lección por etapa y abre el entrenador en modo lección. */
+function startStageLesson(lesson: StageLesson, hintsHidden: boolean): void {
+  currentLesson = lesson;
+  // Primero el entrenador (que espera al cubo nuevo) y luego el cubo.
+  coachPanel.openLesson(lesson, hintsHidden);
+  game.dispatch({ type: 'setup', turns: prepareLesson(lesson) });
+}
 
 // Grabar la partida en video (automático en cada resolución o a mano).
 const recording = new RecordingController(game, view, tracker, ninja);

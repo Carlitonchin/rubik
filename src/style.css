@@ -666,6 +666,69 @@ kbd {
   }
 }
 
+.dojo-card-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #c7cbe8;
+}
+
+.dojo-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.dojo-card-actions .primary,
+.dojo-card-actions .secondary {
+  margin-top: 10px;
+}
+
+.dojo-card-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Gestos de una secuencia: el borde inferior indica la mano (naranja derecha, celeste izquierda, dorado cualquiera o las dos). */
+.dojo-chip,
+.coach-chip {
+  border-bottom: 3px solid var(--hand-color, var(--glass-border));
+}
+
+.dojo-check {
+  color: #3ccf7a;
+}
+
+.dojo-stage-intro p {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #c7cbe8;
+}
+
+.dojo-technique {
+  margin: 14px 0 4px;
+}
+
+.dojo-technique-name {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dojo-notation {
+  margin-left: 4px;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dojo-technique .dojo-chip {
+  opacity: 1;
+}
+
 /* --- Entrenador (pistas) ------------------------------------------------- */
 
 .coach {
@@ -751,9 +814,21 @@ kbd {
   color: var(--muted);
 }
 
+.coach-hand {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .coach-symbol {
   font-size: 40px;
   line-height: 1.15;
+}
+
+.coach-complete {
+  display: flex;
+  flex-direction: column;
 }
 
 .coach-move-text {
@@ -847,19 +922,38 @@ kbd {
   .coach-next {
     display: grid;
     grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'symbol hand'
+      'symbol text';
     align-items: center;
     column-gap: 12px;
+    row-gap: 0;
     margin-top: 8px;
     padding: 8px 12px;
     text-align: left;
   }
 
+  .coach-hand {
+    grid-area: hand;
+  }
+
   .coach-symbol {
+    grid-area: symbol;
     font-size: 28px;
   }
 
   .coach-move-text {
+    grid-area: text;
+  }
+
+  .coach-move-text {
     font-size: 14px;
+  }
+
+  .coach-complete .primary,
+  .coach-complete .secondary {
+    margin-top: 6px;
+    padding: 9px;
   }
 
   .coach-feedback {
@@ -867,13 +961,17 @@ kbd {
     font-size: 13px;
   }
 
-  /* En el móvil no cabe junto al cronómetro: va debajo del botón de ayuda. */
+  /* En el móvil no cabe junto al cronómetro: va como icono en la esquina derecha. */
   .hint-button {
-    top: calc(max(16px, env(safe-area-inset-top)) + 50px);
-    left: 10px;
-    height: 36px;
-    padding: 0 12px;
-    font-size: 13px;
+    left: auto;
+    right: 16px;
+    width: 40px;
+    padding: 0;
+    font-size: 18px;
+  }
+
+  .hint-label {
+    display: none;
   }
 }
 

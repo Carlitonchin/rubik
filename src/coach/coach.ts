@@ -2,7 +2,7 @@ import type { CubeState } from '../core/cube';
 import { mulMatVec, type Vec3 } from '../core/geometry';
 import { turnMatrix, type Turn } from '../core/turn';
 import type { CubeChange } from '../game/game';
-import { nextStep, STAGES, type SolveStep } from '../solver/beginner';
+import { nextStep, STAGES, type SolveStep, type StageId } from '../solver/beginner';
 
 /** Lo que el entrenador necesita del juego. */
 export interface CoachSource {
@@ -19,8 +19,21 @@ export interface CoachSource {
  */
 export type CoachFeedback = 'none' | 'correct' | 'stepDone' | 'back' | 'recalculated' | 'offPlan';
 
+/** Lección por etapas: el entrenador se para al terminar sus etapas. */
+export interface CoachLesson {
+  stages: readonly StageId[];
+  /** Practicar sin ver el siguiente movimiento (se puede pedir una pista). */
+  hintsHidden: boolean;
+  complete: boolean;
+  /** Esperando a que el juego coloque el cubo de la lección. */
+  preparing: boolean;
+  /** Movimientos hechos durante la lección. */
+  moves: number;
+}
+
 export interface CoachState {
   active: boolean;
+  lesson: CoachLesson | null;
   /** Paso actual, o `null` si el cubo está resuelto. */
   step: SolveStep | null;
   /** Índice del siguiente movimiento dentro del paso. */
@@ -46,6 +59,7 @@ export class Coach {
   private signatures: string[] = [];
   private highlight: Vec3[] = [];
   private feedback: CoachFeedback = 'none';
+  private lesson: CoachLesson | null = null;
   private readonly listeners = new Set<(state: CoachState) => void>();
 
   constructor(private readonly source: CoachSource) {
@@ -65,6 +79,7 @@ export class Coach {
   state(): CoachState {
     return {
       active: this.active,
+      lesson: this.lesson && { ...this.lesson },
       step: this.step,
       index: this.index,
       stageNumber: this.step ? STAGES.findIndex((s) => s.id === this.step!.stage) + 1 : STAGES.length,
@@ -80,13 +95,37 @@ export class Coach {
 
   start(): void {
     this.active = true;
+    this.lesson = null;
     this.feedback = 'none';
     this.plan();
     this.emit();
   }
 
+  /**
+   * Empieza una lección: el entrenador se para cuando se terminan esas
+   * etapas. Con `awaitSetup`, espera a que el juego coloque el cubo de la
+   * lección (el siguiente cubo nuevo) antes de mirar nada: el cubo de antes
+   * podría tener ya la etapa hecha.
+   */
+  startLesson(stages: readonly StageId[], hintsHidden: boolean, awaitSetup = false): void {
+    this.active = true;
+    this.lesson = { stages, hintsHidden, complete: false, preparing: awaitSetup, moves: 0 };
+    this.feedback = 'none';
+    if (awaitSetup) this.step = null;
+    else this.plan();
+    this.emit();
+  }
+
+  /** Muestra u oculta el siguiente movimiento en una lección. */
+  setHintsHidden(hidden: boolean): void {
+    if (!this.lesson) return;
+    this.lesson.hintsHidden = hidden;
+    this.emit();
+  }
+
   stop(): void {
     this.active = false;
+    this.lesson = null;
     this.step = null;
     this.emit();
   }
@@ -108,11 +147,33 @@ export class Coach {
       this.signatures.push(cube.signature());
     }
     this.highlight = this.step?.highlight ?? [];
+    if (this.lesson && this.beyondLesson(this.step)) {
+      this.lesson.complete = true;
+      this.step = null;
+    }
+  }
+
+  /** ¿El paso es de una etapa posterior a las de la lección (o ya no queda nada)? */
+  private beyondLesson(step: SolveStep | null): boolean {
+    if (!this.lesson) return false;
+    if (!step) return true;
+    const last = Math.max(...this.lesson.stages.map((stage) => STAGES.findIndex((s) => s.id === stage)));
+    return STAGES.findIndex((s) => s.id === step.stage) > last;
   }
 
   private onCubeChange(change: CubeChange): void {
     if (!this.active) return;
-    if (change.kind === 'reset' || !this.step) {
+    if (change.kind === 'reset') {
+      // Cubo nuevo (mezcla, reinicio o una lección preparada): se empieza de cero.
+      if (this.lesson) Object.assign(this.lesson, { complete: false, preparing: false, moves: 0 });
+      this.feedback = 'none';
+      this.plan();
+      this.emit();
+      return;
+    }
+    if (this.lesson?.complete || this.lesson?.preparing) return;
+    if (change.kind === 'turn' && this.lesson) this.lesson.moves++;
+    if (!this.step) {
       this.feedback = 'none';
       this.plan();
       this.emit();
