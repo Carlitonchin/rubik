@@ -100,7 +100,7 @@ Técnicamente, las pistas necesitan un "resolvedor" propio que siga las mismas e
 
 ## Hoja de ruta
 
-1. Motor del cubo + 3D + modo fácil (teclado y táctil). Ya jugable, también en el móvil.
+1. ✅ Motor del cubo + 3D + modo fácil (teclado y táctil). Ya jugable, también en el móvil.
 2. Detección de manos + reconocimiento de sellos + cámara en la esquina.
 3. Modo ninja + dojo de sellos.
 4. Grabar y compartir.
