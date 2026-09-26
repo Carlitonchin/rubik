@@ -2,14 +2,14 @@ import type { Game, GameStatus } from '../game/game';
 import { summarizeEvent } from '../input/ninja/describe';
 import type { GestureState } from '../input/ninja/gesture-engine';
 import type { NinjaController } from '../input/ninja/ninja-controller';
-import type { CubeView } from '../render/cube-view';
+import type { CubeSnapshot, CubeView } from '../render/cube-view';
 import { formatTime } from '../ui/format';
 import { HAND_COLORS } from '../ui/theme';
 import type { HandTracker } from '../vision/hand-tracker';
 import type { HandsFrame } from '../vision/hands-interpreter';
 import { Compositor, FEED_VISIBLE_MS, type FeedItem } from './compositor';
 import { pickRecordingMime, type VideoFormat } from './formats';
-import { VideoRecorder } from './video-recorder';
+import { FRAME_RATE, VideoRecorder } from './video-recorder';
 
 export interface RecordingSettings {
   format: VideoFormat;
@@ -35,6 +35,8 @@ const SETTINGS_KEY = 'rubik.recording';
 /** Tras resolver, se sigue grabando la tarjeta final este tiempo. */
 export const END_CARD_MS = 2500;
 const MAX_DURATION_MS = 10 * 60 * 1000;
+/** Tamaño del cubo en el video (el mayor de los formatos). */
+const SNAPSHOT_SIZE = 720;
 
 /**
  * Graba la partida como video: automáticamente cada resolución, o cuando el
@@ -44,7 +46,9 @@ export class RecordingController {
   readonly mime = pickRecordingMime();
   settings: RecordingSettings = loadSettings();
   private compositor: Compositor | null = null;
+  private snapshot: CubeSnapshot | null = null;
   private recorder: VideoRecorder | null = null;
+  private lastComposeAt = 0;
   private recordingState: RecordingState = { state: 'idle' };
   private feed: FeedItem[] = [];
   private hands: HandsFrame | null = null;
@@ -107,10 +111,11 @@ export class RecordingController {
     // Algunos navegadores solo capturan lienzos que están en la página.
     this.compositor.canvas.className = 'recording-canvas';
     document.body.append(this.compositor.canvas);
+    this.snapshot = this.view.createSnapshot(SNAPSHOT_SIZE);
     this.solve = null;
-    this.compose();
     this.recorder = new VideoRecorder(this.mime);
     this.recorder.start(this.compositor.canvas);
+    this.lastComposeAt = 0;
     this.setState({ state: 'recording', mode, startedAt: performance.now() });
   }
 
@@ -165,28 +170,35 @@ export class RecordingController {
   }
 
   private compose(): void {
-    if (!this.compositor || this.recordingState.state !== 'recording') return;
+    if (!this.compositor || !this.snapshot || this.recordingState.state !== 'recording') return;
     const now = performance.now();
     if (now - this.recordingState.startedAt > MAX_DURATION_MS) {
       void this.stop();
       return;
     }
+    // El video es de 30 fps: componer más a menudo solo gastaría tiempo del juego.
+    if (now - this.lastComposeAt < 1000 / FRAME_RATE - 4) return;
+    this.lastComposeAt = now;
+    this.snapshot.render();
     const snapshot = this.game.snapshot();
     const cameraOn = this.tracker.isActive && this.tracker.video.videoWidth > 0;
     this.compositor.draw({
       now,
-      cube: { canvas: this.view.canvas, crop: this.view.cubeCrop() },
+      cube: { canvas: this.snapshot.canvas, crop: { x: 0, y: 0, size: SNAPSHOT_SIZE } },
       camera: cameraOn ? { video: this.tracker.video, hands: this.hands, gesture: this.gesture } : null,
       timerMs: snapshot.status === 'free' ? null : this.game.elapsedMs(),
       moves: snapshot.moves,
       feed: this.feed,
       solved: snapshot.status === 'solved' ? (this.solve ?? { timeMs: this.game.elapsedMs(), moves: snapshot.moves }) : null,
     });
+    this.recorder?.frameReady();
   }
 
   private cleanup(): void {
     this.compositor?.canvas.remove();
     this.compositor = null;
+    this.snapshot?.dispose();
+    this.snapshot = null;
     this.recorder = null;
   }
 

@@ -53,6 +53,13 @@ const STILL_ANGLE = (6 * Math.PI) / 180;
  * del seguimiento (o una mano confundida con la otra): no gira nada.
  */
 const GLITCH_DISTANCE = 1.2;
+/**
+ * Al volver al centro el sello se rearma al instante. Para que el rebote de
+ * esa vuelta no dispare el giro contrario, durante un momento ese giro
+ * necesita un recorrido mayor.
+ */
+const REBOUND_MS = 250;
+const REBOUND_FACTOR = 1.6;
 const GLITCH_ANGLE = (60 * Math.PI) / 180;
 /** Tiempo para esperar a la otra mano cuando las dos tienen el mismo sello. */
 export const PAIR_WINDOW_MS = 180;
@@ -99,6 +106,7 @@ class HandGesture {
   private lastPose: Pose | null = null;
   private firedMotion: Motion = 'up';
   private peak = 0;
+  private rebound: { motion: Motion; until: number } | null = null;
   private history: { time: number; pose: Pose }[] = [];
 
   update(hand: TrackedHand | null, aspect: number, time: number): Motion | null {
@@ -134,8 +142,14 @@ class HandGesture {
         return null;
 
       case 'armed': {
-        const motion = detectMotion(seal, this.displacement(pose));
-        if (motion) {
+        const displacement = this.displacement(pose);
+        const motion = detectMotion(seal, displacement);
+        const isRebound =
+          motion !== null &&
+          this.rebound?.motion === motion &&
+          time < this.rebound.until &&
+          progressAlong(motion, displacement) < thresholdFor(motion) * REBOUND_FACTOR;
+        if (motion && !isRebound) {
           this.mode = 'fired';
           this.firedMotion = motion;
           this.peak = progressAlong(motion, this.displacement(pose));
@@ -146,11 +160,16 @@ class HandGesture {
       }
 
       case 'fired': {
-        // Recarga cuando la mano vuelve (al centro o al menos a medio camino) y se para.
         const progress = progressAlong(this.firedMotion, this.displacement(pose));
         this.peak = Math.max(this.peak, progress);
-        const returned = Math.abs(progress) <= returnBandFor(this.firedMotion) || this.peak - progress >= this.peak / 2;
-        if (returned && this.isStill(time)) this.arm(pose);
+        if (Math.abs(progress) <= returnBandFor(this.firedMotion)) {
+          // Volvió al centro: listo al instante, con el mismo punto de partida.
+          this.mode = 'armed';
+          this.rebound = { motion: OPPOSITE[this.firedMotion], until: time + REBOUND_MS };
+        } else if (this.peak - progress >= this.peak / 2 && this.isStill(time)) {
+          // Volvió solo a medio camino: cuenta como nuevo punto de partida cuando la mano se para.
+          this.arm(pose);
+        }
         return null;
       }
 
@@ -208,6 +227,7 @@ class HandGesture {
   private arm(pose: Pose): void {
     this.anchor = pose;
     this.mode = 'armed';
+    this.rebound = null;
   }
 }
 
@@ -249,6 +269,8 @@ function progressAlong(motion: Motion, { dx, dy, droll }: Displacement): number 
       return -droll;
   }
 }
+
+const OPPOSITE: Record<Motion, Motion> = { up: 'down', down: 'up', left: 'right', right: 'left', cw: 'ccw', ccw: 'cw' };
 
 function thresholdFor(motion: Motion): number {
   return motion === 'cw' || motion === 'ccw' ? TWIST_ANGLE : FLICK_DISTANCE;

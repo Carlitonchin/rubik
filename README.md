@@ -31,7 +31,7 @@ La primera vez que se enciende la cámara, el navegador descarga el detector de 
 
 - El botón «Grabar» abre las opciones: formato horizontal (1280×720, tipo stream) o vertical (720×1280, para reels) y grabación automática de cada resolución (activada por defecto: empieza al terminar la mezcla y acaba 2,5 s después de resolver, con una tarjeta final).
 - El video se compone aparte: el cubo, la cámara con el esqueleto de las manos (en vertical ocupa la mitad de arriba), el cronómetro, las fichas de combo y la tarjeta de «¡Resuelto!».
-- Se graba en MP4 (H.264) con MediaRecorder, directamente en el navegador (Chrome y Safari). Al terminar se puede ver, descargar o compartir con el menú del sistema (Web Share) donde el navegador lo permite.
+- Se graba en MP4 (H.264) con MediaRecorder, directamente en el navegador (Chrome y Safari). Para no restar fluidez al juego, el cubo del video lo dibuja un segundo renderizador pequeño (copiar el lienzo de la pantalla es muy caro en Safari), se compone a 30 fps y cada fotograma se entrega al grabador justo al dibujarlo. Al terminar se puede ver, descargar o compartir con el menú del sistema (Web Share) donde el navegador lo permite.
 
 El detector corre en un hilo aparte (`src/vision/detector.worker.ts`) para que el cubo siga a 60 fps con la cámara encendida. Si el navegador no lo permite, analiza en el hilo principal.
 

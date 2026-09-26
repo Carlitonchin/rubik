@@ -179,6 +179,29 @@ describe('recarga', () => {
     expect(sim.moves()).toEqual(['R', 'R', "R'"]);
   });
 
+  it('al volver al centro se rearma al instante, sin esperar a que la mano se pare', () => {
+    const sim = new Simulator();
+    sim.hold({ right: { shape: 'fist' } }, 200);
+    sim.move({ right: { shape: 'fist' } }, { right: { shape: 'fist', dy: -1 } }, 130);
+    expect(sim.engine.state().hands.right.mode).toBe('fired');
+    sim.move({ right: { shape: 'fist', dy: -1 } }, { right: { shape: 'fist' } }, 200);
+    expect(sim.engine.state().hands.right.mode).toBe('armed');
+  });
+
+  it('el rebote al volver no dispara el giro contrario', () => {
+    const sim = new Simulator();
+    sim.hold({ right: { shape: 'fist' } }, 200);
+    sim.move({ right: { shape: 'fist' } }, { right: { shape: 'fist', dy: -1 } }, 130);
+    // Vuelve con fuerza y se pasa del centro 0,9 tamaños de mano.
+    sim.move({ right: { shape: 'fist', dy: -1 } }, { right: { shape: 'fist', dy: 0.9 } }, 200);
+    sim.move({ right: { shape: 'fist', dy: 0.9 } }, { right: { shape: 'fist' } }, 150);
+    sim.hold({ right: { shape: 'fist' } }, 300);
+    expect(sim.moves()).toEqual(['R']);
+    // Pasado el rebote, un golpe hacia abajo sí cuenta.
+    flick(sim, 'right', 'fist', { dy: 1 });
+    expect(sim.moves()).toEqual(['R', "R'"]);
+  });
+
   it('recarga aunque la vuelta no llegue exactamente al centro', () => {
     const sim = new Simulator();
     sim.hold({ right: { shape: 'fist' } }, 200);

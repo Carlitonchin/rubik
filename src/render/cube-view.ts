@@ -22,6 +22,8 @@ const CAMERA_FOV = 32;
 const FIT_RADIUS_VERTICAL = 3.3;
 const FIT_RADIUS_HORIZONTAL = 2.7;
 const FREE_ROTATION_SPEED = 0.009;
+/** Esfera que contiene el cubo (sus esquinas están a 2,6) con un poco de margen. */
+const CUBE_RADIUS = 2.75;
 
 interface Cubie {
   object: THREE.Group;
@@ -47,6 +49,14 @@ export interface LayerHighlight {
   strength?: number;
   /** Parpadea suavemente. */
   pulse?: boolean;
+}
+
+/** Cubo dibujado aparte, en un lienzo pequeño (para el video). */
+export interface CubeSnapshot {
+  readonly canvas: HTMLCanvasElement;
+  /** Dibuja el cubo en `canvas`. La imagen hay que usarla enseguida, en la misma tarea. */
+  render(): void;
+  dispose(): void;
 }
 
 export interface ScreenVector {
@@ -244,17 +254,36 @@ export class CubeView {
   }
 
   /**
-   * Cuadrado (en píxeles del lienzo) centrado en el cubo que lo contiene
-   * entero. Sirve para recortar el cubo al grabar video, sea cual sea la ventana.
+   * Un segundo renderizador, pequeño, que dibuja el mismo cubo encuadrado en
+   * un cuadrado de `size` píxeles. Para grabar video es mucho más barato que
+   * copiar el lienzo de la pantalla: en Safari esa copia obliga a leer de la
+   * tarjeta gráfica una imagen enorme en cada fotograma.
    */
-  cubeCrop(): { x: number; y: number; size: number } {
-    // Esfera que contiene el cubo (sus esquinas están a 2,6) con un poco de margen.
-    const radius = 2.75;
-    const distance = this.camera.position.length();
-    const halfFov = THREE.MathUtils.degToRad(this.camera.fov) / 2;
-    const fraction = Math.tan(Math.asin(Math.min(1, radius / distance))) / Math.tan(halfFov);
-    const size = Math.min(this.canvas.width, this.canvas.height, fraction * this.canvas.height);
-    return { x: (this.canvas.width - size) / 2, y: (this.canvas.height - size) / 2, size };
+  createSnapshot(size: number): CubeSnapshot {
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(1);
+    renderer.setSize(size, size, false);
+    // Cada renderizador necesita su propia iluminación de entorno.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+    const camera = new THREE.PerspectiveCamera(CAMERA_FOV, 1, 0.1, 100);
+    camera.position.copy(this.camera.position).setLength(CUBE_RADIUS / Math.sin(THREE.MathUtils.degToRad(CAMERA_FOV) / 2));
+    camera.lookAt(0, 0, 0);
+    return {
+      canvas: renderer.domElement,
+      render: () => {
+        const screenEnvironment = this.scene.environment;
+        this.scene.environment = environment;
+        renderer.render(this.scene, camera);
+        this.scene.environment = screenEnvironment;
+      },
+      dispose: () => {
+        environment.dispose();
+        renderer.dispose();
+        renderer.forceContextLoss();
+      },
+    };
   }
 
   // --- Consultas para el control táctil ---------------------------------

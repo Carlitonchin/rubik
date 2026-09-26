@@ -14,7 +14,7 @@ export interface FeedItem {
 /** Todo lo que se ve en un fotograma del video. */
 export interface CompositeFrame {
   now: number;
-  /** Lienzo 3D del juego y el cuadrado que ocupa el cubo en él. */
+  /** Lienzo con el cubo dibujado y el cuadrado que ocupa en él. */
   cube: { canvas: HTMLCanvasElement; crop: { x: number; y: number; size: number } };
   camera: { video: HTMLVideoElement; hands: HandsFrame | null; gesture: GestureState | null } | null;
   /** Tiempo del reto, o `null` en juego libre (entonces solo se muestran los movimientos). */

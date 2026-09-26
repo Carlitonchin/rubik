@@ -68,7 +68,7 @@ Hay que mantenerlos un rato para no activarlos por accidente; la etiqueta de la 
 - **Golpe:** con el sello armado, un golpe de unos 0,7 "tamaños de mano" (unos 6 cm) en su dirección, o un giro de 30° para la palma, mueve la capa. Las distancias se miden en tamaños de mano para que dé igual lo cerca que estés de la cámara. Una deriva lenta no cuenta, y un gesto a medias que se sostiene y se devuelve tampoco dispara el contrario.
 - **Cubo entero con las dos manos:** basta con que una mano complete el gesto y la otra vaya al menos a medio camino en la misma dirección, porque cada muñeca gira con más facilidad hacia un lado que hacia el otro.
 - **Vista previa:** con el sello armado, la capa elegida se ilumina con el color de la mano. Si cambias de forma, se cancela.
-- **Recarga:** después de cada movimiento la mano vuelve hacia el centro y se para para "recargar", y esa vuelta no cuenta como movimiento. Sin esto, cada movimiento dispararía el contrario al regresar la mano.
+- **Recarga:** después de cada movimiento la mano vuelve hacia el centro para "recargar", y esa vuelta no cuenta como movimiento. Al llegar al centro el sello se rearma al instante (la capa vuelve a iluminarse); si la mano solo vuelve a medio camino, se rearma cuando se para. Para que el rebote de la vuelta no dispare el giro contrario, durante 0,25 s ese giro necesita un recorrido 1,6 veces mayor.
 - **Protecciones:** no se dispara mientras la mano ya muestra otra forma (cambio de sello) ni ante saltos imposibles entre fotogramas (fallos del seguimiento).
 - **Ajustable:** los umbrales, y si hace falta los propios sellos, se afinan probando con personas reales.
 
