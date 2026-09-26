@@ -38,6 +38,17 @@ export interface PickResult {
   point: Vec3;
 }
 
+/** Capa iluminada (vista previa del modo ninja o capa que pide el dojo). */
+export interface LayerHighlight {
+  axis: Axis;
+  layer: number;
+  color: string;
+  /** Intensidad de 0 a 1. */
+  strength?: number;
+  /** Parpadea suavemente. */
+  pulse?: boolean;
+}
+
 export interface ScreenVector {
   x: number;
   y: number;
@@ -64,6 +75,14 @@ export class CubeView {
   private turningCubies: Cubie[] = [];
   private turningAxis: Axis = 0;
   private turningLayer = 0;
+  private readonly highlightGroups = new Map<string, { signature: string; highlights: LayerHighlight[] }>();
+  private highlightObjects: { mesh: THREE.Mesh; edges: THREE.LineSegments; highlight: LayerHighlight }[] = [];
+  private readonly slabGeometries = ([0, 1, 2] as const).map((axis) => {
+    const size = [3.12, 3.12, 3.12];
+    size[axis] = 1.08;
+    const box = new THREE.BoxGeometry(size[0], size[1], size[2]);
+    return { box, edges: new THREE.EdgesGeometry(box) };
+  });
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -86,7 +105,54 @@ export class CubeView {
 
     new ResizeObserver(() => this.resize(container)).observe(container);
     this.resize(container);
-    this.renderer.setAnimationLoop(() => this.renderer.render(this.scene, this.camera));
+    this.renderer.setAnimationLoop((time) => {
+      this.animateHighlights(time);
+      this.renderer.render(this.scene, this.camera);
+    });
+  }
+
+  // --- Capas iluminadas -------------------------------------------------
+
+  /** Cambia las capas iluminadas de un grupo (`key`); cada módulo usa el suyo. */
+  setHighlights(key: string, highlights: LayerHighlight[]): void {
+    const signature = JSON.stringify(highlights);
+    if (this.highlightGroups.get(key)?.signature === signature) return;
+    this.highlightGroups.set(key, { signature, highlights });
+    this.rebuildHighlights();
+  }
+
+  private rebuildHighlights(): void {
+    for (const { mesh, edges } of this.highlightObjects) {
+      this.root.remove(mesh, edges);
+      (mesh.material as THREE.Material).dispose();
+      (edges.material as THREE.Material).dispose();
+    }
+    this.highlightObjects = [];
+    for (const { highlights } of this.highlightGroups.values()) {
+      for (const highlight of highlights) {
+        const { box, edges } = this.slabGeometries[highlight.axis];
+        const mesh = new THREE.Mesh(
+          box,
+          new THREE.MeshBasicMaterial({ color: highlight.color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }),
+        );
+        const outline = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: highlight.color, transparent: true }));
+        for (const object of [mesh, outline]) {
+          object.position.setComponent(highlight.axis, highlight.layer);
+          object.renderOrder = 1;
+          this.root.add(object);
+        }
+        this.highlightObjects.push({ mesh, edges: outline, highlight });
+      }
+    }
+    this.animateHighlights(performance.now());
+  }
+
+  private animateHighlights(time: number): void {
+    for (const { mesh, edges, highlight } of this.highlightObjects) {
+      const strength = (highlight.strength ?? 1) * (highlight.pulse ? 0.65 + 0.35 * Math.sin(time / 180) : 1);
+      (mesh.material as THREE.MeshBasicMaterial).opacity = 0.16 * strength;
+      (edges.material as THREE.LineBasicMaterial).opacity = 0.9 * strength;
+    }
   }
 
   /** Vuelve a colocar todas las piezas en su sitio (cubo resuelto). */

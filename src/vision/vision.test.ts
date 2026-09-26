@@ -4,6 +4,7 @@ import fixtures from './__fixtures__/hands.json';
 import { MEDIAPIPE_VERSION } from './assets';
 import { classifyHand, type HandShape } from './hand-shape';
 import { assignSides, HandsInterpreter, type RawHand } from './hands-interpreter';
+import type { Point3 } from './landmarks';
 import { OneEuroFilter } from './one-euro';
 import { LOST_GRACE_MS, ShapeStabilizer, STABLE_MS } from './shape-stabilizer';
 
@@ -35,6 +36,37 @@ describe('reconocimiento de sellos con fotos reales', () => {
   it.each(cases)('%s (mano %i) → %s', (name, hand, expected) => {
     const { raw } = fixture(name, hand);
     expect(classifyHand(raw.world)).toBe(expected);
+  });
+});
+
+/**
+ * Mano sintética en 3D: muñeca en el origen y cada dedo recto hacia arriba
+ * (estirado) o doblado hacia la palma. Sirve para sellos sin foto de ejemplo.
+ */
+function syntheticHand(fingers: Record<'index' | 'middle' | 'ring' | 'pinky', 'up' | 'down'>): Point3[] {
+  const points: Point3[] = Array.from({ length: 21 }, () => ({ x: 0, y: 0, z: 0 }));
+  const bases = { index: [5, -0.03], middle: [9, -0.01], ring: [13, 0.01], pinky: [17, 0.03] } as const;
+  for (const [finger, [mcp, x]] of Object.entries(bases)) {
+    const up = fingers[finger as keyof typeof fingers] === 'up';
+    // MCP a 9 cm de la muñeca; falanges de 4, 2,5 y 2 cm.
+    points[mcp] = { x, y: -0.09, z: 0 };
+    points[mcp + 1] = up ? { x, y: -0.13, z: 0 } : { x, y: -0.1, z: -0.035 };
+    points[mcp + 2] = up ? { x, y: -0.155, z: 0 } : { x, y: -0.075, z: -0.04 };
+    points[mcp + 3] = up ? { x, y: -0.175, z: 0 } : { x, y: -0.06, z: -0.025 };
+  }
+  return points;
+}
+
+describe('reconocimiento de sellos con manos sintéticas', () => {
+  it.each([
+    [{ index: 'up', middle: 'down', ring: 'down', pinky: 'up' }, 'horns'],
+    [{ index: 'up', middle: 'up', ring: 'up', pinky: 'up' }, 'palm'],
+    [{ index: 'down', middle: 'down', ring: 'down', pinky: 'down' }, 'fist'],
+    [{ index: 'up', middle: 'down', ring: 'down', pinky: 'down' }, 'point'],
+    [{ index: 'up', middle: 'up', ring: 'down', pinky: 'down' }, 'two'],
+    [{ index: 'down', middle: 'down', ring: 'down', pinky: 'up' }, 'unknown'],
+  ] as const)('%o → %s', (fingers, expected) => {
+    expect(classifyHand(syntheticHand(fingers))).toBe(expected);
   });
 });
 

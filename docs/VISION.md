@@ -35,7 +35,17 @@ Cada movimiento se forma con tres cosas: **qué mano, qué forma y hacia dónde 
 | Izquierda | ☝️ Índice | Fila de abajo | A un lado o al otro | D / D' |
 | Izquierda | ✋ Palma hacia la cámara | Cara de atrás | Como un volante | B / B' |
 
-Las dos manos usan los mismos tres sellos; la mano decide el lado: la derecha controla derecha, arriba y frente, y la izquierda controla izquierda, abajo y atrás. El índice vale apunte hacia donde apunte, para poder usar la postura más cómoda. (Al principio la izquierda usaba 👇 índice hacia abajo, pero obligaba a girar la muñeca y subir el hombro.)
+### Capas del medio
+
+| Mano | Sello | Movimiento | Capa | Notación (expertos) |
+|---|---|---|---|---|
+| Cualquiera | 🤘 Cuernos (índice y meñique) | Arriba o abajo | Columna del medio | M' / M |
+| Cualquiera | 🤘 | A un lado o al otro | Fila del medio | E' / E |
+| Cualquiera | 🤘 | Girando como un volante | Capa del medio entre frente y atrás | S / S' |
+
+Para recordarlo: los dos dedos de en medio doblados = la capa del medio. Se eligió 🤘 porque la cámara lo distingue bien, se forma rápido desde ☝️ (solo hay que sacar el meñique) y deja ✌️ libre para deshacer. Con 🤘 un golpe no cuenta si la mano gira mucho, ni un giro si la mano se desplaza.
+
+Las dos manos usan los mismos sellos; la mano decide el lado: la derecha controla derecha, arriba y frente, y la izquierda controla izquierda, abajo y atrás. El índice vale apunte hacia donde apunte, para poder usar la postura más cómoda. (Al principio la izquierda usaba 👇 índice hacia abajo, pero obligaba a girar la muñeca y subir el hombro.)
 
 Hacer el mismo movimiento dos veces seguidas equivale a media vuelta.
 
@@ -45,17 +55,21 @@ Si haces los sellos de las dos manos a la vez y las mueves juntas, se mueve el c
 
 ### Sellos especiales
 
-Hay que mantenerlos alrededor de 1 segundo para no activarlos por accidente.
+Hay que mantenerlos un rato para no activarlos por accidente; la etiqueta de la mano se va llenando mientras tanto.
 
-- ✌️ Dos dedos hacia arriba: deshacer.
-- Cruz con los dedos de ambas manos: mezclar el cubo. Hay que comprobar que la cámara lo reconoce bien, porque los dedos se cruzan.
+- ✌️ con una mano durante 0,8 s: deshacer.
+- ✌️ con las dos manos durante 1,5 s: mezclar el cubo. (Se pensó en la cruz de dedos del Kage Bunshin, pero al cruzarse los dedos la cámara pierde la mano.)
 
 ### Reglas de funcionamiento
 
 - **Zona activa ("zona de chakra"):** solo cuentan las manos que están dentro de una zona de la imagen. Al bajar las manos se descansa o se piensa sin que se active nada.
-- **Sello estable:** la forma tiene que mantenerse un instante (unos 100 ms) antes de activarse.
-- **Vista previa:** cuando se activa un sello, la capa elegida se ilumina antes de moverse. Si cambias de forma, se cancela.
-- **Recarga:** después de cada movimiento la mano vuelve al centro para "recargar", y esa vuelta no cuenta como movimiento. Sin esto, cada movimiento dispararía el contrario al regresar la mano.
+- **Sello estable:** la forma tiene que mantenerse un instante (unos 100 ms) antes de reconocerse.
+- **Armar con la mano quieta:** el sello se arma cuando la mano se queda quieta otro instante (100 ms). Así subir la mano desde la zona de descanso o cambiar de sello en pleno movimiento no gira nada.
+- **Golpe:** con el sello armado, un golpe de unos 0,7 "tamaños de mano" (unos 6 cm) en su dirección, o un giro de 30° para la palma, mueve la capa. Las distancias se miden en tamaños de mano para que dé igual lo cerca que estés de la cámara. Una deriva lenta no cuenta, y un gesto a medias que se sostiene y se devuelve tampoco dispara el contrario.
+- **Cubo entero con las dos manos:** basta con que una mano complete el gesto y la otra vaya al menos a medio camino en la misma dirección, porque cada muñeca gira con más facilidad hacia un lado que hacia el otro.
+- **Vista previa:** con el sello armado, la capa elegida se ilumina con el color de la mano. Si cambias de forma, se cancela.
+- **Recarga:** después de cada movimiento la mano vuelve hacia el centro y se para para "recargar", y esa vuelta no cuenta como movimiento. Sin esto, cada movimiento dispararía el contrario al regresar la mano.
+- **Protecciones:** no se dispara mientras la mano ya muestra otra forma (cambio de sello) ni ante saltos imposibles entre fotogramas (fallos del seguimiento).
 - **Ajustable:** los umbrales, y si hace falta los propios sellos, se afinan probando con personas reales.
 
 ## Aprender a armar el cubo: el camino del ninja
@@ -104,7 +118,7 @@ Técnicamente, las pistas necesitan un "resolvedor" propio que siga las mismas e
 
 1. ✅ Motor del cubo + 3D + modo fácil (teclado y táctil). Ya jugable, también en el móvil.
 2. ✅ Detección de manos + reconocimiento de sellos + cámara en la esquina.
-3. Modo ninja + dojo de sellos.
+3. ✅ Modo ninja + dojo de sellos.
 4. Grabar y compartir.
 5. Aprender a armar: lecciones guiadas y pistas.
 6. Modo medio.

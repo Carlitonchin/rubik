@@ -1,12 +1,13 @@
 import { distance3, LM, type Point3 } from './landmarks';
 
 /** Los sellos que el juego reconoce. */
-export type HandShape = 'fist' | 'point' | 'palm' | 'two' | 'unknown';
+export type HandShape = 'fist' | 'point' | 'palm' | 'horns' | 'two' | 'unknown';
 
 export const SHAPE_LABELS: Record<HandShape, { emoji: string; name: string }> = {
   fist: { emoji: '✊', name: 'Puño' },
   point: { emoji: '☝️', name: 'Índice' },
   palm: { emoji: '✋', name: 'Palma' },
+  horns: { emoji: '🤘', name: 'Cuernos' },
   two: { emoji: '✌️', name: 'Dos dedos' },
   unknown: { emoji: '·', name: 'Sin sello' },
 };
@@ -53,6 +54,7 @@ export function classifyHand(world: readonly Point3[]): HandShape {
   if (curled('index') && curled('middle') && curled('ring') && curled('pinky')) return 'fist';
   if (extended('index') && extended('middle') && extended('ring') && extended('pinky')) return 'palm';
   if (extended('index') && extended('middle') && curled('ring') && curled('pinky')) return 'two';
+  if (extended('index') && curled('middle') && curled('ring') && extended('pinky')) return 'horns';
   if (extended('index') && curled('middle') && curled('ring') && curled('pinky')) return 'point';
   return 'unknown';
 }

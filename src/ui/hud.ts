@@ -16,11 +16,13 @@ const ICONS = {
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>',
   camera:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 10l5-3v10l-5-3"/><rect x="3" y="6" width="12" height="12" rx="2"/></svg>',
+  dojo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5c6 1.6 12 1.6 18 0M5 9.5h14M7.5 6.3V20M16.5 6.3V20"/></svg>',
   help: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/></svg>',
 };
 
 export interface HudOptions {
   onToggleCamera: () => void;
+  onOpenDojo: () => void;
 }
 
 export interface HudHandle {
@@ -42,7 +44,8 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
         <button type="button" data-action="scramble">${ICONS.scramble}<span>Mezclar</span></button>
         <button type="button" data-action="undo">${ICONS.undo}<span>Deshacer</span></button>
         <button type="button" data-action="reset">${ICONS.reset}<span>Reiniciar</span></button>
-        <button type="button" data-action="camera" aria-pressed="false">${ICONS.camera}<span>Cámara</span></button>
+        <button type="button" data-action="camera" aria-pressed="false">${ICONS.camera}<span>Ninja</span></button>
+        <button type="button" data-action="dojo">${ICONS.dojo}<span>Dojo</span></button>
         <button type="button" data-action="help">${ICONS.help}<span>Ayuda</span></button>
       </nav>
       <section class="panel solved" data-solved hidden>
@@ -65,11 +68,15 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
           <li><kbd>M</kbd> <kbd>E</kbd> <kbd>S</kbd> giran las capas del medio.</li>
           <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> o <kbd>Retroceso</kbd> deshacen.</li>
         </ul>
-        <h3>Con la cámara (en pruebas)</h3>
+        <h3>Modo ninja (con la cámara)</h3>
         <ul>
-          <li>Pulsa <b>Cámara</b> y pon las manos frente a ella. Verás qué sello reconoce el juego en cada mano: ✊ puño, ☝️ índice (apuntando hacia donde te resulte cómodo), ✋ palma y ✌️ dos dedos.</li>
+          <li>Pulsa <b>Ninja</b> y pon las manos frente a la cámara. ¿Primera vez? Entra al <b>Dojo</b>.</li>
+          <li>La <b>mano derecha</b> mueve la columna derecha con ✊, la fila de arriba con ☝️ y la cara de frente con ✋. La <b>izquierda</b> hace lo mismo con la columna izquierda, la fila de abajo y la cara de atrás.</li>
+          <li>Forma el sello, quédate quieto un instante y da un golpe: la capa va hacia donde mueves la mano. ✊ arriba o abajo, ☝️ a los lados, ✋ girando como un volante. Luego vuelve al centro.</li>
+          <li><b>🤘 (índice y meñique)</b> con cualquier mano mueve las capas del medio: arriba o abajo la columna del medio, a los lados la fila del medio, y girando la capa del medio entre frente y atrás.</li>
+          <li>El mismo sello con las dos manos, moviéndolas a la vez, gira el cubo entero.</li>
+          <li>✌️ mantenido con una mano deshace; con las dos, mezcla.</li>
           <li>Baja las manos a la <b>zona de descanso</b> (la franja de abajo) para que no cuenten.</li>
-          <li>Por ahora los sellos no mueven el cubo: eso llega en el modo ninja.</li>
         </ul>
         <button type="button" class="primary" data-action="close-help">Entendido</button>
       </section>
@@ -109,6 +116,10 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
         break;
       case 'camera':
         options.onToggleCamera();
+        break;
+      case 'dojo':
+        help.hidden = true;
+        options.onOpenDojo();
         break;
       case 'help':
         help.hidden = !help.hidden;

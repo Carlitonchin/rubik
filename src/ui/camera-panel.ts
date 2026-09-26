@@ -1,18 +1,17 @@
+import type { GestureState } from '../input/ninja/gesture-engine';
+import type { NinjaController } from '../input/ninja/ninja-controller';
+import { layerName } from '../input/ninja/seal-map';
 import { SHAPE_LABELS } from '../vision/hand-shape';
 import type { HandTracker } from '../vision/hand-tracker';
 import { HAND_SIDES, type HandsFrame, type HandSide, type TrackedHand, type Zone } from '../vision/hands-interpreter';
 import { HAND_CONNECTIONS } from '../vision/landmarks';
-
-export const HAND_COLORS: Record<HandSide, string> = {
-  right: '#ff8a2a',
-  left: '#3fd0ff',
-};
+import { HAND_COLORS } from './theme';
 
 /**
  * Imagen de la cámara en una esquina (en espejo), con el esqueleto de las
  * manos dibujado encima y el sello que el juego reconoce en cada una.
  */
-export function mountCameraPanel(container: HTMLElement, tracker: HandTracker): void {
+export function mountCameraPanel(container: HTMLElement, tracker: HandTracker, ninja: NinjaController): void {
   container.insertAdjacentHTML(
     'beforeend',
     `
@@ -68,19 +67,26 @@ export function mountCameraPanel(container: HTMLElement, tracker: HandTracker): 
 
   tracker.onFrame((handsFrame) => {
     draw(ctx, canvas, handsFrame, tracker.interpreter.zone);
-    for (const side of HAND_SIDES) updateChip(chips[side], handsFrame.hands[side]);
     fps.textContent = `${Math.round(tracker.fps)} fps`;
+  });
+  ninja.onState((state, handsFrame) => {
+    for (const side of HAND_SIDES) updateChip(chips[side], side, handsFrame.hands[side], state);
   });
 }
 
-function updateChip(chip: HTMLElement, hand: TrackedHand | null): void {
-  const shape = chip.querySelector<HTMLElement>('[data-shape]')!;
-  const recognized = hand?.shape && hand.shape !== 'unknown' && hand.inZone;
-  chip.classList.toggle('active', Boolean(recognized));
-  if (!hand) shape.textContent = '—';
-  else if (!hand.inZone) shape.textContent = 'descansando';
-  else if (!hand.shape) shape.textContent = '…';
-  else shape.textContent = `${SHAPE_LABELS[hand.shape].emoji} ${SHAPE_LABELS[hand.shape].name}`;
+/** Etiqueta de cada mano: qué capa controla ahora mismo, o qué sello especial está cargando. */
+function updateChip(chip: HTMLElement, side: HandSide, hand: TrackedHand | null, state: GestureState): void {
+  const text = chip.querySelector<HTMLElement>('[data-shape]')!;
+  const { seal, mode } = state.hands[side];
+  const holding = state.hold && hand?.shape === 'two' && hand.inZone ? state.hold : null;
+  chip.classList.toggle('active', Boolean(holding || (seal && mode !== 'idle')));
+  chip.style.setProperty('--progress', String(holding?.progress ?? 0));
+  if (!hand) text.textContent = '—';
+  else if (!hand.inZone) text.textContent = 'descansando';
+  else if (holding) text.textContent = `✌️ ${holding.action === 'undo' ? 'Deshacer' : 'Mezclar'}`;
+  else if (seal) text.textContent = `${SHAPE_LABELS[seal].emoji} ${layerName(side, seal)}`;
+  else if (!hand.shape) text.textContent = '…';
+  else text.textContent = `${SHAPE_LABELS[hand.shape].emoji} ${SHAPE_LABELS[hand.shape].name}`;
 }
 
 function draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, frame: HandsFrame, zone: Zone): void {
