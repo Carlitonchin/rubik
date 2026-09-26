@@ -27,6 +27,12 @@ La primera vez que se enciende la cámara, el navegador descarga el detector de 
 - La capa armada se ilumina con el color de la mano, y cada movimiento aparece como una ficha de combo.
 - El botón «Dojo» abre las lecciones: sellos, movimientos, capas del medio, girar el cubo y la técnica del remolino. Mide precisión y tiempo por paso, y guarda tu récord.
 
+**Fase 4: grabar y compartir.**
+
+- El botón «Grabar» abre las opciones: formato horizontal (1280×720, tipo stream) o vertical (720×1280, para reels) y grabación automática de cada resolución (activada por defecto: empieza al terminar la mezcla y acaba 2,5 s después de resolver, con una tarjeta final).
+- El video se compone aparte: el cubo, la cámara con el esqueleto de las manos (en vertical ocupa la mitad de arriba), el cronómetro, las fichas de combo y la tarjeta de «¡Resuelto!».
+- Se graba en MP4 (H.264) con MediaRecorder, directamente en el navegador (Chrome y Safari). Al terminar se puede ver, descargar o compartir con el menú del sistema (Web Share) donde el navegador lo permite.
+
 El detector corre en un hilo aparte (`src/vision/detector.worker.ts`) para que el cubo siga a 60 fps con la cámara encendida. Si el navegador no lo permite, analiza en el hilo principal.
 
 ## Cómo ejecutarlo
@@ -49,6 +55,7 @@ Para probarlo en el móvil dentro de la misma red: `npm run dev -- --host` y abr
 - `src/render/`: el cubo en 3D con Three.js.
 - `src/input/`: modos de control: teclado, arrastre con ratón o dedo, y `ninja/` (sellos → movimientos). `ninja/gesture-engine.ts` no depende de la cámara y se prueba con manos simuladas.
 - `src/dojo/`: lecciones del dojo (pasos, aciertos, tiempos).
+- `src/recording/`: grabación de video: `compositor.ts` dibuja cada fotograma del video, `recording-controller.ts` decide cuándo grabar.
 - `src/vision/`: cámara, detector de manos (MediaPipe) y reconocimiento de sellos. `hands-interpreter.ts` y `hand-shape.ts` no dependen de la cámara, así que se prueban con datos grabados (`__fixtures__/hands.json`).
 - `src/ui/`: interfaz sobre el cubo y panel de la cámara.
 - `scripts/generate-hand-fixtures.mjs`: regenera los datos de prueba de manos a partir de fotos de ejemplo de MediaPipe.

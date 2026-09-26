@@ -75,6 +75,7 @@ export class CubeView {
   private turningCubies: Cubie[] = [];
   private turningAxis: Axis = 0;
   private turningLayer = 0;
+  private readonly afterRenderListeners = new Set<() => void>();
   private readonly highlightGroups = new Map<string, { signature: string; highlights: LayerHighlight[] }>();
   private highlightObjects: { mesh: THREE.Mesh; edges: THREE.LineSegments; highlight: LayerHighlight }[] = [];
   private readonly slabGeometries = ([0, 1, 2] as const).map((axis) => {
@@ -108,7 +109,18 @@ export class CubeView {
     this.renderer.setAnimationLoop((time) => {
       this.animateHighlights(time);
       this.renderer.render(this.scene, this.camera);
+      for (const listener of this.afterRenderListeners) listener();
     });
+  }
+
+  /**
+   * Se llama justo después de dibujar cada fotograma. Es el único momento en
+   * que se puede copiar la imagen del lienzo 3D (por ejemplo, para grabar video):
+   * después, el navegador la descarta.
+   */
+  onAfterRender(listener: () => void): () => void {
+    this.afterRenderListeners.add(listener);
+    return () => this.afterRenderListeners.delete(listener);
   }
 
   // --- Capas iluminadas -------------------------------------------------
@@ -229,6 +241,20 @@ export class CubeView {
       applyTransform(cubie);
     }
     this.root.quaternion.identity();
+  }
+
+  /**
+   * Cuadrado (en píxeles del lienzo) centrado en el cubo que lo contiene
+   * entero. Sirve para recortar el cubo al grabar video, sea cual sea la ventana.
+   */
+  cubeCrop(): { x: number; y: number; size: number } {
+    // Esfera que contiene el cubo (sus esquinas están a 2,6) con un poco de margen.
+    const radius = 2.75;
+    const distance = this.camera.position.length();
+    const halfFov = THREE.MathUtils.degToRad(this.camera.fov) / 2;
+    const fraction = Math.tan(Math.asin(Math.min(1, radius / distance))) / Math.tan(halfFov);
+    const size = Math.min(this.canvas.width, this.canvas.height, fraction * this.canvas.height);
+    return { x: (this.canvas.width - size) / 2, y: (this.canvas.height - size) / 2, size };
   }
 
   // --- Consultas para el control táctil ---------------------------------

@@ -1,5 +1,6 @@
 import type { Command } from '../game/commands';
 import type { Game, GameSnapshot } from '../game/game';
+import { formatTime } from './format';
 
 const STATUS_HINTS: Record<GameSnapshot['status'], string> = {
   free: 'Juego libre · pulsa «Mezclar» para empezar un reto',
@@ -17,16 +18,21 @@ const ICONS = {
   camera:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 10l5-3v10l-5-3"/><rect x="3" y="6" width="12" height="12" rx="2"/></svg>',
   dojo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5c6 1.6 12 1.6 18 0M5 9.5h14M7.5 6.3V20M16.5 6.3V20"/></svg>',
+  record: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>',
   help: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/></svg>',
 };
 
 export interface HudOptions {
   onToggleCamera: () => void;
   onOpenDojo: () => void;
+  onRecord: () => void;
 }
 
 export interface HudHandle {
   setCameraActive(active: boolean): void;
+  setRecording(active: boolean): void;
+  hideSolved(): void;
 }
 
 /** Interfaz sobre el cubo: cronómetro, contador, botones, ayuda y aviso de cubo resuelto. */
@@ -46,8 +52,9 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
         <button type="button" data-action="reset">${ICONS.reset}<span>Reiniciar</span></button>
         <button type="button" data-action="camera" aria-pressed="false">${ICONS.camera}<span>Ninja</span></button>
         <button type="button" data-action="dojo">${ICONS.dojo}<span>Dojo</span></button>
-        <button type="button" data-action="help">${ICONS.help}<span>Ayuda</span></button>
+        <button type="button" data-action="record">${ICONS.record}<span>Grabar</span></button>
       </nav>
+      <button type="button" class="help-button" data-action="help" aria-label="Ayuda">?</button>
       <section class="panel solved" data-solved hidden>
         <h2>¡Resuelto!</h2>
         <p class="solved-time" data-solved-time></p>
@@ -78,6 +85,12 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
           <li>✌️ mantenido con una mano deshace; con las dos, mezcla.</li>
           <li>Baja las manos a la <b>zona de descanso</b> (la franja de abajo) para que no cuenten.</li>
         </ul>
+        <h3>Grabar y compartir</h3>
+        <ul>
+          <li>Pulsa <b>Grabar</b> para elegir el formato: horizontal (tipo stream) o vertical (reels y TikTok).</li>
+          <li>Por defecto se graba cada resolución sola: desde que se mezcla el cubo hasta que lo resuelves. También puedes grabar cuando quieras.</li>
+          <li>Al terminar puedes ver el video, descargarlo o compartirlo. Nada sale de tu equipo hasta que lo compartes.</li>
+        </ul>
         <button type="button" class="primary" data-action="close-help">Entendido</button>
       </section>
     </div>
@@ -95,6 +108,7 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
   const help = find('[data-help]');
   const undoButton = find<HTMLButtonElement>('[data-action="undo"]');
   const cameraButton = find<HTMLButtonElement>('[data-action="camera"]');
+  const recordButton = find<HTMLButtonElement>('[data-action="record"]');
   const scrambleButtons = hud.querySelectorAll<HTMLButtonElement>('[data-action="scramble"]');
 
   hud.addEventListener('click', (event) => {
@@ -120,6 +134,10 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
       case 'dojo':
         help.hidden = true;
         options.onOpenDojo();
+        break;
+      case 'record':
+        help.hidden = true;
+        options.onRecord();
         break;
       case 'help':
         help.hidden = !help.hidden;
@@ -158,13 +176,12 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
     setCameraActive(active) {
       cameraButton.setAttribute('aria-pressed', String(active));
     },
+    setRecording(active) {
+      recordButton.classList.toggle('recording', active);
+      recordButton.innerHTML = active ? `${ICONS.stop}<span>Parar</span>` : `${ICONS.record}<span>Grabar</span>`;
+    },
+    hideSolved() {
+      solved.hidden = true;
+    },
   };
-}
-
-function formatTime(ms: number): string {
-  const totalCentis = Math.floor(ms / 10);
-  const minutes = Math.floor(totalCentis / 6000);
-  const seconds = Math.floor((totalCentis % 6000) / 100);
-  const centis = totalCentis % 100;
-  return `${minutes}:${String(seconds).padStart(2, '0')}.${String(centis).padStart(2, '0')}`;
 }

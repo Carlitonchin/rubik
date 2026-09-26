@@ -92,7 +92,7 @@ Técnicamente, las pistas necesitan un "resolvedor" propio que siga las mismas e
   - Horizontal 16:9, tipo stream: cubo grande y cámara en la esquina.
   - Vertical 9:16, para reels y TikTok: la cámara ocupa más espacio, porque las manos son el espectáculo.
 - **Grabación automática:** cada resolución se graba sola desde que empieza hasta que el cubo queda armado. Al terminar aparece el tiempo y las opciones de descargar o compartir. También hay grabación manual.
-- **Archivo:** MP4, que es lo que aceptan Instagram y TikTok.
+- **Archivo:** MP4 (H.264, 720p), que es lo que aceptan Instagram y TikTok. Chrome y Safari lo graban directamente con MediaRecorder, sin librerías extra.
 - **Compartir:** en el móvil, el botón abre el menú de compartir del sistema (Instagram, TikTok, WhatsApp…) con el video adjunto. En PC se descarga el archivo; algunos navegadores de escritorio también permiten compartir. Ese menú del sistema requiere tocar o hacer clic.
 - **Fuera del alcance inicial:** publicar directamente en Instagram o TikTok sin pasar por su app, porque requiere permisos especiales de cada plataforma.
 
@@ -119,7 +119,7 @@ Técnicamente, las pistas necesitan un "resolvedor" propio que siga las mismas e
 1. ✅ Motor del cubo + 3D + modo fácil (teclado y táctil). Ya jugable, también en el móvil.
 2. ✅ Detección de manos + reconocimiento de sellos + cámara en la esquina.
 3. ✅ Modo ninja + dojo de sellos.
-4. Grabar y compartir.
+4. ✅ Grabar y compartir.
 5. Aprender a armar: lecciones guiadas y pistas.
 6. Modo medio.
 7. Técnicas con nombre, efectos, rangos y modo velocidad.

@@ -4,10 +4,12 @@ import { attachPointerInput, DragController } from './input/drag';
 import { attachKeyboardInput } from './input/keyboard';
 import { CubeView } from './render/cube-view';
 import { NinjaController } from './input/ninja/ninja-controller';
+import { RecordingController } from './recording/recording-controller';
 import { mountCameraPanel } from './ui/camera-panel';
 import { mountDojo } from './ui/dojo-panel';
 import { mountHud } from './ui/hud';
 import { mountMoveFeed } from './ui/move-feed';
+import { mountRecordingPanel } from './ui/recording-panel';
 import { HandTracker } from './vision/hand-tracker';
 
 const app = document.querySelector<HTMLElement>('#app')!;
@@ -29,11 +31,20 @@ const ninja = new NinjaController(game, view, tracker);
 mountCameraPanel(app, tracker, ninja);
 mountMoveFeed(app, ninja);
 const dojo = mountDojo(app, { tracker, ninja, game, view });
+
+// Grabar la partida en video (automático en cada resolución o a mano).
+const recording = new RecordingController(game, view, tracker, ninja);
+
 const hud = mountHud(app, game, dispatch, {
   onToggleCamera: () => (tracker.isActive ? tracker.stop() : void tracker.start()),
   onOpenDojo: () => dojo.open(),
+  onRecord: () => recordingPanel.toggle(),
 });
 tracker.onStatus((status) => hud.setCameraActive(status.state === 'starting' || status.state === 'running'));
+const recordingPanel = mountRecordingPanel(app, recording, {
+  onRecordingChange: (active) => hud.setRecording(active),
+  onResultShown: () => hud.hideSolved(),
+});
 
 // Acceso desde la consola del navegador para depurar.
-if (import.meta.env.DEV) Object.assign(window, { game, view, tracker, ninja });
+if (import.meta.env.DEV) Object.assign(window, { game, view, tracker, ninja, recording });

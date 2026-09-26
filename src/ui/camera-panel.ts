@@ -4,7 +4,7 @@ import { layerName } from '../input/ninja/seal-map';
 import { SHAPE_LABELS } from '../vision/hand-shape';
 import type { HandTracker } from '../vision/hand-tracker';
 import { HAND_SIDES, type HandsFrame, type HandSide, type TrackedHand, type Zone } from '../vision/hands-interpreter';
-import { HAND_CONNECTIONS } from '../vision/landmarks';
+import { drawHand } from './hand-drawing';
 import { HAND_COLORS } from './theme';
 
 /**
@@ -65,11 +65,9 @@ export function mountCameraPanel(container: HTMLElement, tracker: HandTracker, n
     }
   });
 
-  tracker.onFrame((handsFrame) => {
-    draw(ctx, canvas, handsFrame, tracker.interpreter.zone);
-    fps.textContent = `${Math.round(tracker.fps)} fps`;
-  });
   ninja.onState((state, handsFrame) => {
+    draw(ctx, canvas, handsFrame, state, tracker.interpreter.zone);
+    fps.textContent = `${Math.round(tracker.fps)} fps`;
     for (const side of HAND_SIDES) updateChip(chips[side], side, handsFrame.hands[side], state);
   });
 }
@@ -89,7 +87,7 @@ function updateChip(chip: HTMLElement, side: HandSide, hand: TrackedHand | null,
   else text.textContent = `${SHAPE_LABELS[hand.shape].emoji} ${SHAPE_LABELS[hand.shape].name}`;
 }
 
-function draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, frame: HandsFrame, zone: Zone): void {
+function draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, frame: HandsFrame, gesture: GestureState, zone: Zone): void {
   const dpr = Math.min(window.devicePixelRatio, 2);
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
@@ -119,40 +117,7 @@ function draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, frame: H
 
   for (const side of HAND_SIDES) {
     const hand = frame.hands[side];
-    if (hand) drawHand(ctx, hand, width, height);
+    const armed = gesture.hands[side].mode === 'armed';
+    if (hand) drawHand(ctx, hand, (x, y) => [x * width, y * height], Math.max(1, width / 320), armed);
   }
-}
-
-function drawHand(ctx: CanvasRenderingContext2D, hand: TrackedHand, width: number, height: number): void {
-  const color = HAND_COLORS[hand.side];
-  const point = (i: number) => [hand.points[i].x * width, hand.points[i].y * height] as const;
-  const scale = Math.max(1, width / 320);
-
-  ctx.globalAlpha = hand.inZone ? 1 : 0.35;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2.5 * scale;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  for (const [a, b] of HAND_CONNECTIONS) {
-    ctx.moveTo(...point(a));
-    ctx.lineTo(...point(b));
-  }
-  ctx.stroke();
-
-  ctx.fillStyle = '#fff';
-  for (let i = 0; i < hand.points.length; i++) {
-    const [x, y] = point(i);
-    ctx.beginPath();
-    ctx.arc(x, y, 2.2 * scale, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  if (hand.shape && hand.shape !== 'unknown' && hand.inZone) {
-    const top = Math.min(...hand.points.map((p) => p.y)) * height;
-    ctx.font = `${Math.round(26 * scale)}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(SHAPE_LABELS[hand.shape].emoji, hand.center.x * width, Math.max(28 * scale, top - 6));
-  }
-  ctx.globalAlpha = 1;
 }
