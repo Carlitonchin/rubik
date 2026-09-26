@@ -67,7 +67,7 @@ export function mountHud(container: HTMLElement, game: Game, dispatch: (command:
         </ul>
         <h3>Con la cámara (en pruebas)</h3>
         <ul>
-          <li>Pulsa <b>Cámara</b> y pon las manos frente a ella. Verás qué sello reconoce el juego en cada mano: ✊ puño, ☝️ índice arriba, 👇 índice abajo, ✋ palma y ✌️ dos dedos.</li>
+          <li>Pulsa <b>Cámara</b> y pon las manos frente a ella. Verás qué sello reconoce el juego en cada mano: ✊ puño, ☝️ índice (apuntando hacia donde te resulte cómodo), ✋ palma y ✌️ dos dedos.</li>
           <li>Baja las manos a la <b>zona de descanso</b> (la franja de abajo) para que no cuenten.</li>
           <li>Por ahora los sellos no mueven el cubo: eso llega en el modo ninja.</li>
         </ul>

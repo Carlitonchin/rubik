@@ -29,11 +29,13 @@ Cada movimiento se forma con tres cosas: **qué mano, qué forma y hacia dónde 
 | Mano | Sello | Capa que controla | Cómo se mueve | Notación (expertos) |
 |---|---|---|---|---|
 | Derecha | ✊ Puño | Columna derecha | Mueves el puño arriba o abajo y la columna sube o baja | R / R' |
-| Derecha | ☝️ Índice hacia arriba | Fila de arriba | Mueves la mano a un lado y la fila va hacia ese lado | U / U' |
+| Derecha | ☝️ Índice | Fila de arriba | Mueves la mano a un lado y la fila va hacia ese lado | U / U' |
 | Derecha | ✋ Palma hacia la cámara | Cara de frente | Giras la mano como un volante y la cara gira igual | F / F' |
 | Izquierda | ✊ Puño | Columna izquierda | Arriba o abajo | L / L' |
-| Izquierda | 👇 Índice hacia abajo | Fila de abajo | A un lado o al otro | D / D' |
+| Izquierda | ☝️ Índice | Fila de abajo | A un lado o al otro | D / D' |
 | Izquierda | ✋ Palma hacia la cámara | Cara de atrás | Como un volante | B / B' |
+
+Las dos manos usan los mismos tres sellos; la mano decide el lado: la derecha controla derecha, arriba y frente, y la izquierda controla izquierda, abajo y atrás. El índice vale apunte hacia donde apunte, para poder usar la postura más cómoda. (Al principio la izquierda usaba 👇 índice hacia abajo, pero obligaba a girar la muñeca y subir el hombro.)
 
 Hacer el mismo movimiento dos veces seguidas equivale a media vuelta.
 

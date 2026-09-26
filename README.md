@@ -13,11 +13,13 @@ Juego web de cubo Rubik en 3D que, al final, se jugará con gestos de las manos 
 **Fase 2: cámara y reconocimiento de sellos.**
 
 - El botón «Cámara» muestra la webcam en una esquina (en espejo) con el esqueleto de cada mano.
-- Reconoce en cada mano: ✊ puño, ☝️ índice arriba, 👇 índice abajo, ✋ palma y ✌️ dos dedos.
+- Reconoce en cada mano: ✊ puño, ☝️ índice (apuntando hacia donde sea más cómodo), ✋ palma y ✌️ dos dedos.
 - La franja de abajo es la zona de descanso: las manos ahí no cuentan.
 - Los sellos todavía no mueven el cubo; eso llega con el modo ninja (fase 3).
 
 La primera vez que se enciende la cámara, el navegador descarga el detector de manos de MediaPipe (unos 20 MB, luego queda en caché). El video se analiza en el propio navegador y no se envía a ningún sitio. La cámara solo funciona con `https` o desde `localhost`.
+
+El detector corre en un hilo aparte (`src/vision/detector.worker.ts`) para que el cubo siga a 60 fps con la cámara encendida. Si el navegador no lo permite, analiza en el hilo principal.
 
 ## Cómo ejecutarlo
 

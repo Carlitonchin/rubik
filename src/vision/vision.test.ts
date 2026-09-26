@@ -4,7 +4,6 @@ import fixtures from './__fixtures__/hands.json';
 import { MEDIAPIPE_VERSION } from './assets';
 import { classifyHand, type HandShape } from './hand-shape';
 import { assignSides, HandsInterpreter, type RawHand } from './hands-interpreter';
-import type { Point3 } from './landmarks';
 import { OneEuroFilter } from './one-euro';
 import { LOST_GRACE_MS, ShapeStabilizer, STABLE_MS } from './shape-stabilizer';
 
@@ -17,15 +16,14 @@ const fixture = (name: FixtureName, hand = 0) => {
   return {
     aspect,
     raw: { label: h.handedness, points: h.landmarks, world: h.worldLandmarks } satisfies RawHand,
-    screen: h.landmarks.map((p: Point3) => ({ x: p.x * aspect, y: p.y, z: p.z })),
   };
 };
 
 describe('reconocimiento de sellos con fotos reales', () => {
   const cases: [FixtureName, number, HandShape][] = [
-    ['pointing_up', 0, 'point-up'],
-    ['pointing_down', 0, 'point-down'],
-    ['pointing_up_rotated', 0, 'unknown'],
+    ['pointing_up', 0, 'point'],
+    ['pointing_down', 0, 'point'],
+    ['pointing_up_rotated', 0, 'point'],
     ['fist', 0, 'fist'],
     ['thumb_up', 0, 'fist'],
     ['victory', 0, 'two'],
@@ -35,8 +33,8 @@ describe('reconocimiento de sellos con fotos reales', () => {
     ['right_hands', 1, 'palm'],
   ];
   it.each(cases)('%s (mano %i) → %s', (name, hand, expected) => {
-    const { raw, screen } = fixture(name, hand);
-    expect(classifyHand(raw.world, screen)).toBe(expected);
+    const { raw } = fixture(name, hand);
+    expect(classifyHand(raw.world)).toBe(expected);
   });
 });
 
@@ -118,7 +116,7 @@ describe('intérprete de manos', () => {
     const interpreter = new HandsInterpreter();
     let frame = interpreter.process([raw], 0, aspect);
     const hand = frame.hands[raw.label === 'Left' ? 'left' : 'right']!;
-    expect(hand.rawShape).toBe('point-up');
+    expect(hand.rawShape).toBe('point');
     expect(hand.shape).toBeNull();
     expect(hand.points[0].x).toBeCloseTo(1 - raw.points[0].x);
     expect(Math.abs(hand.roll)).toBeLessThan(0.35);
@@ -126,7 +124,7 @@ describe('intérprete de manos', () => {
     expect(hand.inZone).toBe(true);
 
     for (let t = 33; t <= 133; t += 33) frame = interpreter.process([raw], t, aspect);
-    expect(frame.hands[hand.side]!.shape).toBe('point-up');
+    expect(frame.hands[hand.side]!.shape).toBe('point');
   });
 });
 

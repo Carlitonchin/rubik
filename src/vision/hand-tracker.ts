@@ -1,7 +1,6 @@
-import type { HandLandmarker } from '@mediapipe/tasks-vision';
-import { HAND_MODEL_URL, VISION_WASM_URL } from './assets';
 import { CameraError, openCamera } from './camera';
-import { HandsInterpreter, type HandsFrame, type RawHand } from './hands-interpreter';
+import { createHandDetector, type HandDetector } from './hand-detector';
+import { HandsInterpreter, type HandsFrame } from './hands-interpreter';
 
 export type TrackerStatus =
   | { state: 'off' }
@@ -17,11 +16,15 @@ export type TrackerStatus =
 export class HandTracker {
   readonly video = document.createElement('video');
   readonly interpreter = new HandsInterpreter();
-  private landmarker: Promise<HandLandmarker> | null = null;
-  private detector: HandLandmarker | null = null;
+  private detectorPromise: Promise<HandDetector> | null = null;
+  private detector: HandDetector | null = null;
   private stream: MediaStream | null = null;
   private running = false;
+  /** Hay un fotograma analizándose; los que llegan mientras tanto se saltan. */
+  private busy = false;
   private lastTimestamp = 0;
+  private lastResultTime = 0;
+  private loggedDetectError = false;
   private status: TrackerStatus = { state: 'off' };
   private readonly frameListeners = new Set<(frame: HandsFrame) => void>();
   private readonly statusListeners = new Set<(status: TrackerStatus) => void>();
@@ -46,15 +49,15 @@ export class HandTracker {
   async start(): Promise<void> {
     if (this.isActive) return;
     this.setStatus({ state: 'starting' });
-    // La cámara y el modelo se preparan a la vez.
-    const [camera, model] = await Promise.allSettled([openCamera(this.video), this.loadLandmarker()]);
-    const failed = camera.status === 'rejected' || model.status === 'rejected';
+    // La cámara y el detector se preparan a la vez.
+    const [camera, detector] = await Promise.allSettled([openCamera(this.video), this.loadDetector()]);
+    const failed = camera.status === 'rejected' || detector.status === 'rejected';
     if (failed || this.status.state !== 'starting') {
       if (camera.status === 'fulfilled') stopStream(camera.value);
       this.video.srcObject = null;
       // Si se apagó mientras cargaba, no es un error.
       if (this.status.state !== 'starting') return;
-      const failure: unknown = camera.status === 'rejected' ? camera.reason : (model as PromiseRejectedResult).reason;
+      const failure: unknown = camera.status === 'rejected' ? camera.reason : (detector as PromiseRejectedResult).reason;
       console.error(failure);
       const message =
         failure instanceof CameraError ? failure.message : 'No se pudo cargar el detector de manos. Revisa tu conexión a internet.';
@@ -62,7 +65,7 @@ export class HandTracker {
       return;
     }
     this.stream = (camera as PromiseFulfilledResult<MediaStream>).value;
-    this.detector = (model as PromiseFulfilledResult<HandLandmarker>).value;
+    this.detector = (detector as PromiseFulfilledResult<HandDetector>).value;
     this.running = true;
     this.setStatus({ state: 'running' });
     this.scheduleNextFrame();
@@ -74,65 +77,68 @@ export class HandTracker {
     this.stream = null;
     this.video.srcObject = null;
     this.fps = 0;
-    this.lastTimestamp = 0;
+    this.lastResultTime = 0;
     this.setStatus({ state: 'off' });
   }
 
-  private loadLandmarker(): Promise<HandLandmarker> {
-    this.landmarker ??= (async () => {
-      const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision');
-      const fileset = await FilesetResolver.forVisionTasks(VISION_WASM_URL);
-      const create = (delegate: 'GPU' | 'CPU') =>
-        HandLandmarker.createFromOptions(fileset, {
-          baseOptions: { modelAssetPath: HAND_MODEL_URL, delegate },
-          runningMode: 'VIDEO',
-          numHands: 2,
-          minHandDetectionConfidence: 0.6,
-          minHandPresenceConfidence: 0.5,
-          minTrackingConfidence: 0.5,
-        });
-      try {
-        return await create('GPU');
-      } catch (error) {
-        console.warn('Detector de manos sin GPU; se usa el procesador.', error);
-        return create('CPU');
-      }
-    })().catch((error) => {
-      // Permite reintentar si falló la descarga.
-      this.landmarker = null;
-      throw error;
-    });
-    return this.landmarker;
+  private loadDetector(): Promise<HandDetector> {
+    this.detectorPromise ??= createHandDetector().then(
+      (detector) => {
+        console.info(`Detector de manos listo (${detector.thread === 'worker' ? 'hilo aparte' : 'hilo principal'}, ${detector.delegate}).`);
+        return detector;
+      },
+      (error) => {
+        // Permite reintentar si falló la descarga.
+        this.detectorPromise = null;
+        throw error;
+      },
+    );
+    return this.detectorPromise;
   }
 
   private scheduleNextFrame(): void {
     if (!this.running) return;
     if ('requestVideoFrameCallback' in this.video) {
-      this.video.requestVideoFrameCallback(() => this.processFrame());
+      this.video.requestVideoFrameCallback(() => this.onVideoFrame());
     } else {
-      requestAnimationFrame(() => this.processFrame());
+      requestAnimationFrame(() => this.onVideoFrame());
     }
   }
 
-  private processFrame(): void {
+  private onVideoFrame(): void {
     if (!this.running || !this.detector) return;
-    const now = performance.now();
-    if (this.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && this.video.videoWidth > 0 && now > this.lastTimestamp) {
-      const result = this.detector.detectForVideo(this.video, now);
-      const raw: RawHand[] = result.landmarks.map((points, i) => ({
-        label: result.handedness[i]?.[0]?.categoryName ?? '',
-        points,
-        world: result.worldLandmarks[i],
-      }));
-      const frame = this.interpreter.process(raw, now, this.video.videoWidth / this.video.videoHeight);
-      if (this.lastTimestamp > 0) {
-        const instant = 1000 / (now - this.lastTimestamp);
-        this.fps = this.fps ? this.fps * 0.9 + instant * 0.1 : instant;
-      }
-      this.lastTimestamp = now;
-      for (const listener of this.frameListeners) listener(frame);
+    const video = this.video;
+    // MediaPipe exige marcas de tiempo siempre crecientes.
+    const timestamp = Math.max(performance.now(), this.lastTimestamp + 1);
+    if (!this.busy && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0) {
+      this.busy = true;
+      this.lastTimestamp = timestamp;
+      const aspect = video.videoWidth / video.videoHeight;
+      this.detector
+        .detect(video, timestamp)
+        .then((raw) => {
+          if (!this.running) return;
+          this.emit(this.interpreter.process(raw, timestamp, aspect));
+        })
+        .catch((error) => {
+          if (!this.loggedDetectError) console.error('Fallo al analizar un fotograma', error);
+          this.loggedDetectError = true;
+        })
+        .finally(() => {
+          this.busy = false;
+        });
     }
     this.scheduleNextFrame();
+  }
+
+  private emit(frame: HandsFrame): void {
+    const now = performance.now();
+    if (this.lastResultTime > 0) {
+      const instant = 1000 / (now - this.lastResultTime);
+      this.fps = this.fps ? this.fps * 0.9 + instant * 0.1 : instant;
+    }
+    this.lastResultTime = now;
+    for (const listener of this.frameListeners) listener(frame);
   }
 
   private setStatus(status: TrackerStatus): void {

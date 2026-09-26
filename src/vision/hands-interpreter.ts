@@ -87,11 +87,11 @@ export class HandsInterpreter {
 
       const mirrored = hand.points.map((p) => ({ x: 1 - p.x, y: p.y, z: p.z }));
       const points = this.filters[side].filter(mirrored, time / 1000);
-      const screen = points.map((p) => ({ x: p.x * aspect, y: p.y, z: p.z }));
-      const rawShape = classifyHand(hand.world, screen);
+      const rawShape = classifyHand(hand.world);
       const center = average(PALM_POINTS.map((i) => points[i]));
-      const wrist = screen[LM.WRIST];
-      const middle = screen[LM.MIDDLE_MCP];
+      // Con x multiplicada por el aspecto, x e y quedan en las mismas unidades.
+      const wrist = { x: points[LM.WRIST].x * aspect, y: points[LM.WRIST].y };
+      const middle = { x: points[LM.MIDDLE_MCP].x * aspect, y: points[LM.MIDDLE_MCP].y };
 
       hands[side] = this.last[side] = {
         side,
